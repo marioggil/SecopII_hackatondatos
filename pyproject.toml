@@ -1,0 +1,18 @@
+[project]
+name = "secop-hackatondatos"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "fastapi>=0.121.3",
+    "geopandas>=0.13.2",
+    "ipykernel>=6.29.5",
+    "jinja2>=3.1.6",
+    "matplotlib>=3.7.5",
+    "pandas>=2.0.3",
+    "polars>=1.8.2",
+    "pydal>=20251115.1",
+    "sodapy>=2.2.0",
+    "uvicorn>=0.33.0",
+]

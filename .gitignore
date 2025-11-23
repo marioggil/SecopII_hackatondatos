@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+app/private/experiment_config.json
+data/aprobados/SECOP_II_-_Adiciones_20251120.csv
+data/aprobados/SECOP_II_-_Contratos_Electrónicos_20251120.csv
+data/aprobados/SECOP_II_-_Ejecución_Contratos_20251120.csv
+data/aprobados/SECOP_II_-_Facturas_20251120.csv
+data/aprobados/SECOP_II_-_Garantias_20251120.csv
+data/NoUsados/Proponentes_por_Proceso_SECOP_II_20251120.csv
+data/NoUsados/SECOP_II_-_Adiciones_20251118.csv
+data/NoUsados/SECOP_II_-_Contacto_Entidades_y_Proveedores_20251118.csv
+data/NoUsados/SECOP_II_-_Contratos_Electrónicos_20251118.csv
+data/NoUsados/SECOP_II_-_Procesos_de_Contratación_20251120.csv
