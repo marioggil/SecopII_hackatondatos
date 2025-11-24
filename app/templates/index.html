@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en-us" dir="ltr">
+<head>
+  <meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>SECOP II Visual</title>
+
+<link rel="stylesheet" href="static/css/main.css">
+<script src="static/js/main.js"></script>
+<script src="static/js/htmx.min.js"></script>
+<script src="static/js/d3.v7.min.js"></script>
+<link rel="stylesheet" href="static/css/leaflet.css" />
+<script src="static/js/leaflet.js"></script>
+
+</head>
+<body>
+    <div hx-get="/html/header" hx-trigger="load" hx-swap="innerHTML" class="title" id="title"></div> 
+    <div hx-get="/html/section_cards" hx-trigger="load" hx-swap="innerHTML" class="cards-container"></div>
+  
+
+</body>
+</html>

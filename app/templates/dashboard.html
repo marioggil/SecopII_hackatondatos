@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - SECOP II Visual</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>SECOP II Visual</h1>
+        <nav>
+            <a href="/">Inicio</a>
+            <a href="/dashboard">Dashboard</a>
+            <a href="/visualizacion/red">Red de Relaciones</a>
+        </nav>
+    </header>
+
+    <main>
+        <h2>{{ title }}</h2>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Total Contratos</h3>
+                <p class="number">{{ total_contratos }}</p>
+            </div>
+        </div>
+
+        <div class="entidades">
+            <h3>Entidades Principales</h3>
+            <ul>
+                {% for entidad in entidades %}
+                    <li>{{ entidad }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div id="visualization"></div>
+    </main>
+
+    <script src="/static/js/d3-visualizations.js"></script>
+    <script>
+        // Cargar datos desde la API
+        fetch('/api/contratos')
+            .then(response => response.json())
+            .then(data => {
+                // Crear visualización D3.js con los datos
+                createVisualization(data.contratos);
+            });
+    </script>
+</body>
+</html>

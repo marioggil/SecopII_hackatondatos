@@ -186,11 +186,11 @@ curl http://localhost:8000/api/v1/analysis/additions?limit=10
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+Este proyecto está bajo la Licencia MIT.
 
 ## 👥 Autores
 
-- Tu Nombre - [@marioggil](https://github.com/marioggil)
+- marioggil - [@marioggil](https://github.com/marioggil)
 
 
 ---

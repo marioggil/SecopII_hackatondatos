@@ -1,0 +1,551 @@
+/* --- VARIABLES DE DISEÑO --- */
+:root {
+  /* Paleta de Colores - Profesional Corporativa */
+  --color-primary-dark: #1a237e;
+  --color-primary-medium: #3f51b5;
+  --color-primary-light: #7986cb;
+  
+  /* Toques Creativos Vibrantes */
+  --color-accent-green: #00b894;
+  --color-accent-turquoise: #0984e3;
+  --color-accent-purple: #6c5ce7;
+  
+  /* Neutros */
+  --color-text-primary: #263238;
+  --color-text-secondary: #607d8b;
+  --color-bg-main: #fafafa;
+  --color-bg-card: #ffffff;
+  --color-border: #eceff1;
+  
+  /* Estados */
+  --color-success: #43a047;
+  --color-warning: #fb8c00;
+  --color-error: #e53935;
+  
+  /* Espaciado */
+  --spacing-xs: 8px;
+  --spacing-sm: 16px;
+  --spacing-md: 24px;
+  --spacing-lg: 32px;
+  --spacing-xl: 48px;
+  --spacing-2xl: 64px;
+  
+  /* Tipografía */
+  --font-family: 'aeonikPro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sm: 0.875rem;
+  --font-base: 1rem;
+  --font-lg: 1.25rem;
+  --font-xl: 1.5rem;
+  --font-2xl: 2rem;
+  --font-3xl: 2.5rem;
+  
+  /* Sombras con profundidad */
+  --shadow-sm: 0 1px 3px rgba(26, 35, 126, 0.12), 0 1px 2px rgba(26, 35, 126, 0.06);
+  --shadow-md: 0 4px 6px rgba(26, 35, 126, 0.1), 0 2px 4px rgba(26, 35, 126, 0.06);
+  --shadow-lg: 0 10px 25px rgba(26, 35, 126, 0.15), 0 5px 10px rgba(26, 35, 126, 0.08);
+  --shadow-xl: 0 20px 40px rgba(26, 35, 126, 0.2), 0 10px 20px rgba(26, 35, 126, 0.1);
+  
+  /* Bordes redondeados */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  
+  /* Transiciones */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- RESET Y BASE --- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-base);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-main);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- HEADER MEJORADO --- */
+.title {
+  width: 100%;
+  height: auto;
+  min-height: 80px;
+  background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-medium) 50%, var(--color-primary-light) 100%);
+  color: white;
+  border-radius: 0;
+  box-shadow: var(--shadow-md);
+  align-items: center;
+  justify-content: space-between;
+  display: flex;
+  padding: var(--spacing-md) var(--spacing-xl);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  transition: all var(--transition-base);
+}
+
+.title:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Logo mejorado */
+.logo {
+  font-size: var(--font-2xl);
+  font-weight: 700;
+  color: white;
+  text-decoration: none;
+  letter-spacing: -0.5px;
+  transition: transform var(--transition-fast);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.logo:hover {
+  transform: translateY(-2px);
+  color: var(--color-accent-turquoise);
+}
+
+/* Botones mejorados */
+.btn {
+  border: none;
+  color: white;
+  padding: 12px 24px;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: 500;
+  transition: all var(--transition-base);
+  text-decoration: none;
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width var(--transition-slow), height var(--transition-slow);
+}
+
+.btn:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.primary {
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.primary:hover {
+  background: var(--color-accent-turquoise);
+  border-color: var(--color-accent-turquoise);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(9, 132, 227, 0.4);
+}
+
+/* --- FEATURED IMAGE / HERO SECTION --- */
+.featured-image {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(26, 35, 126, 0.05) 0%, rgba(121, 134, 203, 0.05) 100%);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl);
+  margin: var(--spacing-lg) 0;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-base);
+}
+
+.featured-image:hover {
+  box-shadow: var(--shadow-xl);
+  transform: translateY(-4px);
+}
+
+#network {
+  width: 100%;
+  height: auto;
+  min-height: 400px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: white;
+  box-shadow: var(--shadow-sm);
+}
+
+/* --- CARDS CONTAINER - BENTO BOX LAYOUT --- */
+.cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* --- CARDS MEJORADAS --- */
+.card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  position: relative;
+  cursor: pointer;
+  will-change: transform;
+}
+
+/* Efecto de gradiente sutil en hover */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, 
+    var(--color-accent-green) 0%, 
+    var(--color-accent-turquoise) 50%, 
+    var(--color-accent-purple) 100%);
+  transform: translateX(-100%);
+  transition: transform var(--transition-slow);
+}
+
+.card:hover::before {
+  transform: translateX(0);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-8px);
+  border-color: var(--color-primary-light);
+}
+
+.card:active {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Imágenes de las cards */
+.card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  transition: transform var(--transition-slow);
+}
+
+.card:hover img {
+  transform: scale(1.05);
+}
+
+/* Contenedor de contenido */
+.container {
+  padding: var(--spacing-md);
+}
+
+.container h4 {
+  font-size: var(--font-lg);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+  font-weight: 600;
+  transition: color var(--transition-fast);
+}
+
+.card:hover .container h4 {
+  color: var(--color-primary-medium);
+}
+
+.container p {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+/* --- VARIANTES DE CARDS PARA BENTO BOX --- */
+.card-xlarge {
+  grid-column: span 3;
+  grid-row: span 2;
+}
+
+.card-large {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.card-wide {
+  grid-column: span 2;
+}
+
+.card-tall {
+  grid-row: span 2;
+}
+
+.card-xlarge img {
+  height: 350px;
+  object-fit: cover;
+}
+
+.card-xlarge .container {
+  padding: var(--spacing-lg);
+}
+
+.card-xlarge .container h4 {
+  font-size: var(--font-xl);
+  margin-bottom: var(--spacing-sm);
+}
+
+.card-xlarge .container p {
+  font-size: var(--font-base);
+  line-height: 1.6;
+}
+
+.card-large img {
+  height: 300px;
+}
+
+.card-tall img {
+  height: 100%;
+  max-height: 400px;
+}
+
+/* --- BADGES Y ETIQUETAS --- */
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: var(--spacing-sm);
+}
+
+.badge-success {
+  background: rgba(67, 160, 71, 0.1);
+  color: var(--color-success);
+}
+
+.badge-info {
+  background: rgba(9, 132, 227, 0.1);
+  color: var(--color-accent-turquoise);
+}
+
+.badge-purple {
+  background: rgba(108, 92, 231, 0.1);
+  color: var(--color-accent-purple);
+}
+
+/* --- TOOLTIP MEJORADO --- */
+.tooltip {
+  position: fixed;
+  background: var(--color-text-primary);
+  color: white;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  pointer-events: none;
+  z-index: 10000;
+  box-shadow: var(--shadow-xl);
+  max-width: 300px;
+  line-height: 1.4;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* --- FOOTER --- */
+.footer {
+  background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-medium) 100%);
+  color: white;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  margin-top: var(--spacing-2xl);
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.footer a {
+  color: var(--color-accent-turquoise);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.footer a:hover {
+  color: white;
+  text-decoration: underline;
+}
+
+.footer img {
+  vertical-align: middle;
+  transition: transform var(--transition-fast);
+}
+
+.footer img:hover {
+  transform: scale(1.2);
+}
+
+/* --- RESPONSIVE DESIGN --- */
+@media (max-width: 1024px) {
+  .cards-container {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg);
+  }
+  
+  .card-xlarge {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+  
+  .card-large,
+  .card-wide {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .title {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+  }
+  
+  .logo {
+    font-size: var(--font-xl);
+  }
+  
+  .btn {
+    padding: 10px 20px;
+    font-size: 0.8rem;
+  }
+  
+  .cards-container {
+    grid-template-columns: 1fr;
+    padding: var(--spacing-md);
+  }
+  
+  .card-xlarge,
+  .card-large,
+  .card-wide,
+  .card-tall {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+  
+  .featured-image {
+    padding: var(--spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --font-base: 0.9rem;
+    --font-lg: 1.1rem;
+    --font-xl: 1.3rem;
+    --font-2xl: 1.6rem;
+  }
+  
+  .title {
+    padding: var(--spacing-sm);
+  }
+  
+  .cards-container {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+  
+  .card img {
+    height: 150px;
+  }
+}
+
+/* --- ANIMACIONES Y EFECTOS ESPECIALES --- */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card {
+  animation: fadeIn var(--transition-slow) ease-out;
+}
+
+/* Efecto de carga progresiva */
+.card:nth-child(1) { animation-delay: 0ms; }
+.card:nth-child(2) { animation-delay: 50ms; }
+.card:nth-child(3) { animation-delay: 100ms; }
+.card:nth-child(4) { animation-delay: 150ms; }
+.card:nth-child(5) { animation-delay: 200ms; }
+.card:nth-child(6) { animation-delay: 250ms; }
+.card:nth-child(7) { animation-delay: 300ms; }
+.card:nth-child(8) { animation-delay: 350ms; }
+.card:nth-child(9) { animation-delay: 400ms; }
+
+/* Scroll suave */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Mejora de rendimiento */
+.card,
+.btn,
+.logo {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+}
+
+/* --- UTILIDADES --- */
+.text-center {
+  text-align: center;
+}
+
+.mt-lg {
+  margin-top: var(--spacing-lg);
+}
+
+.mb-lg {
+  margin-bottom: var(--spacing-lg);
+}
+
+.p-md {
+  padding: var(--spacing-md);
+}
+
+/* Modo oscuro (opcional - para futuras implementaciones) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg-main: #121212;
+    --color-bg-card: #1e1e1e;
+    --color-text-primary: #e8e8e8;
+    --color-text-secondary: #b8b8b8;
+    --color-border: #2a2a2a;
+  }
+  
+  .featured-image {
+    background: linear-gradient(135deg, rgba(26, 35, 126, 0.2) 0%, rgba(121, 134, 203, 0.2) 100%);
+  }
+}
