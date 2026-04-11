@@ -110,6 +110,26 @@ async def section_cards(request: Request):
     return templates.TemplateResponse("section_cards.html", context)
 
 
+@app.get("/html/global_chart", response_class=HTMLResponse)
+async def global_chart(request: Request):
+    chart_query = """
+        SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
+        FROM contratos 
+        WHERE fecha_firma IS NOT NULL
+        GROUP BY mes 
+        ORDER BY mes
+    """
+    chart_data = "[]"
+    try:
+        chart_data_raw = db.executesql(chart_query, as_dict=True)
+        chart_data = json.dumps(chart_data_raw)
+    except Exception as e:
+        print("Error global chart:", e)
+
+    context = {"request": request, "chart_data": chart_data}
+    return templates.TemplateResponse("global_chart.html", context)
+
+
 @app.get("/html/footer", response_class=HTMLResponse)
 async def footer(request: Request):
     context = {"request": request}
@@ -180,10 +200,10 @@ def generar_nodos_y_enlaces(
         query_base &= db.contratos.valor_contrato <= valor_maximo
 
     if estado_contrato:
-        query_base &= db.contratos.estado_contrato == estado_contrato
+        query_base &= db.contratos.estado_contrato.ilike(estado_contrato)
 
     if modalidad_contratacion:
-        query_base &= db.contratos.modalidad_contratacion == modalidad_contratacion
+        query_base &= db.contratos.modalidad_contratacion.ilike(modalidad_contratacion)
 
     # ============= PROCESAR ENTIDADES =============
     resultado = db.contratos.nit_entidad.count()
@@ -675,8 +695,12 @@ async def graph(
     estado_contrato: Optional[str] = Query(None),
     modalidad_contratacion: Optional[str] = Query(None),
     departamento: Optional[str] = Query(None),
-    valor_minimo: Optional[float] = Query(None),
+    valor_minimo: Optional[str] = Query(None),
+    valor_maximo: Optional[str] = Query(None),
 ):
+
+    v_minimo = float(valor_minimo) if valor_minimo and valor_minimo.strip() else None
+    v_maximo = float(valor_maximo) if valor_maximo and valor_maximo.strip() else None
 
     nodos, enlaces = generar_nodos_y_enlaces(
         estado_contrato=estado_contrato if estado_contrato else None,
@@ -684,7 +708,8 @@ async def graph(
         if modalidad_contratacion
         else None,
         departamento=departamento if departamento else None,
-        valor_minimo=valor_minimo if valor_minimo else None,
+        valor_minimo=v_minimo,
+        valor_maximo=v_maximo,
         tamano_min=3,
         tamano_max=120,
         limit_entidades=40,
@@ -834,55 +859,143 @@ async def leyend(request: Request):
 
 
 @app.get("/entidad/{nit}", response_class=HTMLResponse)
-async def entidad_detalle(request: Request, nit: str):
+async def entidad_detalle(
+    request: Request,
+    nit: str,
+    page: int = 1,
+    search: Optional[str] = Query(None),
+    sort_by: str = Query("fecha"),
+):
     entidad = db(db.entidades.nit_entidad == nit).select().first()
     if not entidad:
         raise HTTPException(status_code=404, detail="Entidad no encontrada")
 
-    contratos = db(db.contratos.nit_entidad == nit).select(
-        orderby=~db.contratos.fecha_firma, limitby=(0, 50)
-    )
+    query = db.contratos.nit_entidad == nit
 
-    conteo = db.contratos.id.count()
-    suma = db.contratos.valor_contrato.sum()
-    stats_query = db(db.contratos.nit_entidad == nit).select(conteo, suma).first()
+    if search:
+        query &= db.contratos.id_contrato.ilike(
+            f"%{search}%"
+        ) | db.contratos.referencia_contrato.ilike(f"%{search}%")
 
-    stats = {
-        "total_contratos": stats_query[conteo] or 0,
-        "valor_total": float(stats_query[suma] or 0),
-        "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
-    }
+    if sort_by == "valor":
+        orderby = ~db.contratos.valor_contrato
+    else:
+        orderby = ~db.contratos.fecha_firma
+
+    limit = 50
+    offset = (page - 1) * limit
+
+    contratos = db(query).select(orderby=orderby, limitby=(offset, offset + limit))
+
+    stats = {"total_contratos": 0, "valor_total": 0.0, "promedio": 0.0}
+    chart_data = "[]"
+    is_htmx = request.headers.get("HX-Request")
+
+    if not is_htmx or page == 1:
+        conteo = db.contratos.id.count()
+        suma = db.contratos.valor_contrato.sum()
+        stats_query = db(db.contratos.nit_entidad == nit).select(conteo, suma).first()
+
+        stats = {
+            "total_contratos": stats_query[conteo] or 0,
+            "valor_total": float(stats_query[suma] or 0),
+            "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
+        }
+
+        chart_query = """
+            SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
+            FROM contratos 
+            WHERE nit_entidad = ? AND fecha_firma IS NOT NULL
+            GROUP BY mes 
+            ORDER BY mes
+        """
+        try:
+            chart_data_raw = db.executesql(
+                chart_query, placeholders=[nit], as_dict=True
+            )
+            chart_data = json.dumps(chart_data_raw)
+        except Exception as e:
+            print("Error chart:", e)
 
     context = {
         "request": request,
         "entidad": entidad,
         "contratos": contratos,
         "stats": stats,
+        "chart_data": chart_data,
+        "page": page,
+        "search": search or "",
+        "sort_by": sort_by,
     }
+
+    if is_htmx:
+        return templates.TemplateResponse("entidad_filas.html", context)
+
     return templates.TemplateResponse("entidad_detalle.html", context)
 
 
 @app.get("/proveedor/{documento}", response_class=HTMLResponse)
-async def proveedor_detalle(request: Request, documento: str):
+async def proveedor_detalle(
+    request: Request,
+    documento: str,
+    page: int = 1,
+    search: Optional[str] = Query(None),
+    sort_by: str = Query("fecha"),
+):
     proveedor = db(db.proveedoresypersonas.documento == documento).select().first()
     if not proveedor:
         raise HTTPException(status_code=404, detail="Proveedor no encontrado")
 
-    contratos = db(db.contratos.documento_proveedor == documento).select(
-        orderby=~db.contratos.fecha_firma, limitby=(0, 50)
-    )
+    query = db.contratos.documento_proveedor == documento
 
-    conteo = db.contratos.id.count()
-    suma = db.contratos.valor_contrato.sum()
-    stats_query = (
-        db(db.contratos.documento_proveedor == documento).select(conteo, suma).first()
-    )
+    if search:
+        query &= db.contratos.id_contrato.ilike(
+            f"%{search}%"
+        ) | db.contratos.nombre_entidad.ilike(f"%{search}%")
 
-    stats = {
-        "total_contratos": stats_query[conteo] or 0,
-        "valor_total": float(stats_query[suma] or 0),
-        "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
-    }
+    if sort_by == "valor":
+        orderby = ~db.contratos.valor_contrato
+    else:
+        orderby = ~db.contratos.fecha_firma
+
+    limit = 50
+    offset = (page - 1) * limit
+
+    contratos = db(query).select(orderby=orderby, limitby=(offset, offset + limit))
+
+    stats = {"total_contratos": 0, "valor_total": 0.0, "promedio": 0.0}
+    chart_data = "[]"
+    is_htmx = request.headers.get("HX-Request")
+
+    if not is_htmx or page == 1:
+        conteo = db.contratos.id.count()
+        suma = db.contratos.valor_contrato.sum()
+        stats_query = (
+            db(db.contratos.documento_proveedor == documento)
+            .select(conteo, suma)
+            .first()
+        )
+
+        stats = {
+            "total_contratos": stats_query[conteo] or 0,
+            "valor_total": float(stats_query[suma] or 0),
+            "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
+        }
+
+        chart_query = """
+            SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
+            FROM contratos 
+            WHERE documento_proveedor = ? AND fecha_firma IS NOT NULL
+            GROUP BY mes 
+            ORDER BY mes
+        """
+        try:
+            chart_data_raw = db.executesql(
+                chart_query, placeholders=[documento], as_dict=True
+            )
+            chart_data = json.dumps(chart_data_raw)
+        except Exception as e:
+            print("Error chart:", e)
 
     sanciones = db(db.sancionados.documento == documento).select()
 
@@ -891,6 +1004,14 @@ async def proveedor_detalle(request: Request, documento: str):
         "proveedor": proveedor,
         "contratos": contratos,
         "stats": stats,
+        "chart_data": chart_data,
         "sanciones": sanciones,
+        "page": page,
+        "search": search or "",
+        "sort_by": sort_by,
     }
+
+    if is_htmx:
+        return templates.TemplateResponse("proveedor_filas.html", context)
+
     return templates.TemplateResponse("proveedor_detalle.html", context)
