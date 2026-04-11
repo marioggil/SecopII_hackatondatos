@@ -1,2 +1,62 @@
+<div style="display: flex; height: calc(100vh - 80px); width: 100%;">
+    <!-- Panel Lateral de Filtros -->
+    <div style="width: 300px; background: white; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 10; overflow-y: auto;">
+        <h3 style="margin-top: 0; color: var(--color-primary-dark); font-size: 1.2rem; border-bottom: 2px solid var(--color-border); padding-bottom: 10px;">Filtros del Grafo</h3>
+        
+        <form id="filtros-grafo" hx-get="/html/graph_rel/" hx-target="#graph-container" hx-trigger="change, submit">
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Estado del Contrato</label>
+                <select name="estado_contrato" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <option value="">Todos</option>
+                    <option value="En ejecución">En ejecución</option>
+                    <option value="Terminado">Terminado</option>
+                    <option value="Modificado">Modificado</option>
+                    <option value="Cerrado">Cerrado</option>
+                    <option value="Suspendido">Suspendido</option>
+                    <option value="Cancelado">Cancelado</option>
+                </select>
+            </div>
 
-    <div hx-get="/html/index_graph.html" hx-trigger="load" hx-swap="outerHTML"></div>  
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Modalidad</label>
+                <select name="modalidad_contratacion" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <option value="">Todas</option>
+                    <option value="Contratación directa">Contratación directa</option>
+                    <option value="Licitación pública">Licitación pública</option>
+                    <option value="Mínima cuantía">Mínima cuantía</option>
+                    <option value="Concurso de méritos abierto">Concurso de méritos abierto</option>
+                    <option value="Selección Abreviada de Menor Cuantía">Selección Abreviada</option>
+                    <option value="Contratación régimen especial">Régimen Especial</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Departamento</label>
+                <select name="departamento" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <option value="">Todos</option>
+                    <option value="Distrito Capital de Bogotá">Bogotá D.C.</option>
+                    <option value="Antioquia">Antioquia</option>
+                    <option value="Valle del Cauca">Valle del Cauca</option>
+                    <option value="Cundinamarca">Cundinamarca</option>
+                    <option value="Santander">Santander</option>
+                    <option value="Atlántico">Atlántico</option>
+                    <option value="Bolívar">Bolívar</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Monto Mínimo (COP)</label>
+                <input type="number" name="valor_minimo" placeholder="Ej: 50000000" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+            </div>
+
+            <button type="submit" class="btn primary" style="width: 100%; justify-content: center; background: var(--color-primary-medium);">Aplicar Filtros</button>
+            <button type="reset" class="btn" style="width: 100%; margin-top: 10px; background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border);" onclick="setTimeout(() => htmx.trigger('#filtros-grafo', 'submit'), 50)">Limpiar</button>
+        </form>
+    </div>
+
+    <!-- Contenedor del Grafo -->
+    <div id="graph-container" style="flex: 1; position: relative; overflow: hidden; background: #f0f2f5; display: flex; flex-direction: column;" hx-get="/html/graph_rel/" hx-trigger="load">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--color-text-secondary);">Cargando grafo...</div>
+    </div>
+</div>

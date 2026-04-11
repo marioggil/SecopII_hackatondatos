@@ -352,8 +352,8 @@ body {
 /* --- TOOLTIP MEJORADO --- */
 .tooltip {
   position: fixed;
-  background: var(--color-text-primary);
-  color: white;
+  background: rgba(15, 23, 42, 0.95); /* Fondo oscuro fijo para legibilidad */
+  color: #ffffff;
   padding: var(--spacing-sm);
   border-radius: var(--radius-md);
   font-size: var(--font-sm);
