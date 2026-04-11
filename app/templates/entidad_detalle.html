@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Detalle de Entidad - {{ entidad.nombre_entidad }}</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <style>
+    body { background: var(--color-bg-main); color: var(--color-text-primary); margin: 0; padding: 0; font-family: var(--font-family); }
+    .header-panel { background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-medium) 100%); color: white; padding: 30px; box-shadow: var(--shadow-md); margin-bottom: 20px; }
+    .header-panel h1 { margin: 0 0 10px 0; font-size: 2rem; }
+    .header-panel p { margin: 0; opacity: 0.9; font-size: 1.1rem; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; padding: 0 20px; margin-bottom: 20px; }
+    .stat-card { background: var(--color-bg-card); padding: 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); border: 1px solid var(--color-border); }
+    .stat-card h3 { margin: 0 0 10px 0; color: var(--color-text-secondary); font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 1.8rem; font-weight: bold; color: var(--color-primary-medium); margin: 0; }
+    .table-container { background: var(--color-bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin: 0 20px 40px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { padding: 12px 15px; border-bottom: 2px solid var(--color-border); color: var(--color-text-secondary); font-weight: 600; }
+    td { padding: 12px 15px; border-bottom: 1px solid var(--color-border); color: var(--color-text-primary); }
+    tr:hover { background: rgba(0,0,0,0.02); }
+    a { color: var(--color-accent-turquoise); text-decoration: none; font-weight: 500; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+    <div class="header-panel">
+        <h1>{{ entidad.nombre_entidad }}</h1>
+        <p><strong>NIT:</strong> {{ entidad.nit_entidad }} &nbsp;|&nbsp; <strong>Departamento:</strong> {{ entidad.departamento }} &nbsp;|&nbsp; <strong>Sector:</strong> {{ entidad.sector }}</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total Contratos</h3>
+            <p class="value">{{ stats.total_contratos }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>Valor Total Contratado</h3>
+            <p class="value" style="color: var(--color-success);">${{ "{:,.0f}".format(stats.valor_total).replace(',', '.') }} COP</p>
+        </div>
+        <div class="stat-card">
+            <h3>Promedio por Contrato</h3>
+            <p class="value" style="color: var(--color-warning);">${{ "{:,.0f}".format(stats.promedio).replace(',', '.') }} COP</p>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <h2 style="margin-top: 0; color: var(--color-primary-dark); margin-bottom: 20px;">Últimos Contratos Adjudicados</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID / Referencia</th>
+                    <th>Proveedor</th>
+                    <th>Valor</th>
+                    <th>Estado</th>
+                    <th>Modalidad</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in contratos %}
+                <tr>
+                    <td style="font-size: 0.9em; max-width: 200px; word-wrap: break-word;">{{ c.id_contrato }}<br><small style="color: var(--color-text-secondary);">{{ c.referencia_contrato }}</small></td>
+                    <td>
+                        {% if c.documento_proveedor %}
+                            <a href="/proveedor/{{ c.documento_proveedor }}" target="_blank">{{ c.proveedor_adjudicado }}</a>
+                        {% else %}
+                            <span style="color: var(--color-text-secondary);">Sin proveedor registrado</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight: bold; color: var(--color-success);">${{ "{:,.0f}".format(c.valor_contrato or 0).replace(',', '.') }}</td>
+                    <td><span class="badge {% if c.estado_contrato == 'Terminado' %}badge-success{% else %}badge-info{% endif %}">{{ c.estado_contrato }}</span></td>
+                    <td style="font-size: 0.9em;">{{ c.modalidad_contratacion }}</td>
+                </tr>
+                {% endfor %}
+                {% if not contratos %}
+                <tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--color-text-secondary);">No se encontraron contratos para esta entidad.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

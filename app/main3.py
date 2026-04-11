@@ -564,7 +564,15 @@ def generar_html_grafo(
             .attr('fill', d => d.color)
             .attr('stroke', '#fff')
             .attr('stroke-width', 2)
+            .style('cursor', 'pointer')
             .call(drag(simulation))
+            .on('click', (event, d) => {{
+                if (d.tipo === 'entidad') {{
+                    window.open('/entidad/' + d.id, '_blank');
+                }} else {{
+                    window.open('/proveedor/' + d.id, '_blank');
+                }}
+            }})
             .on('mouseover', (event, d) => {{
                 let tooltipContent = `<strong>${{d.name}}</strong><br>`;
                 tooltipContent += `Tipo: ${{d.tipo === 'entidad' ? 'Entidad' : 'Proveedor'}}<br>`;
@@ -823,3 +831,66 @@ async def leyend(request: Request):
 </html>
     """
     return HTMLResponse(content=html_content)
+
+
+@app.get("/entidad/{nit}", response_class=HTMLResponse)
+async def entidad_detalle(request: Request, nit: str):
+    entidad = db(db.entidades.nit_entidad == nit).select().first()
+    if not entidad:
+        raise HTTPException(status_code=404, detail="Entidad no encontrada")
+
+    contratos = db(db.contratos.nit_entidad == nit).select(
+        orderby=~db.contratos.fecha_firma, limitby=(0, 50)
+    )
+
+    conteo = db.contratos.id.count()
+    suma = db.contratos.valor_contrato.sum()
+    stats_query = db(db.contratos.nit_entidad == nit).select(conteo, suma).first()
+
+    stats = {
+        "total_contratos": stats_query[conteo] or 0,
+        "valor_total": float(stats_query[suma] or 0),
+        "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
+    }
+
+    context = {
+        "request": request,
+        "entidad": entidad,
+        "contratos": contratos,
+        "stats": stats,
+    }
+    return templates.TemplateResponse("entidad_detalle.html", context)
+
+
+@app.get("/proveedor/{documento}", response_class=HTMLResponse)
+async def proveedor_detalle(request: Request, documento: str):
+    proveedor = db(db.proveedoresypersonas.documento == documento).select().first()
+    if not proveedor:
+        raise HTTPException(status_code=404, detail="Proveedor no encontrado")
+
+    contratos = db(db.contratos.documento_proveedor == documento).select(
+        orderby=~db.contratos.fecha_firma, limitby=(0, 50)
+    )
+
+    conteo = db.contratos.id.count()
+    suma = db.contratos.valor_contrato.sum()
+    stats_query = (
+        db(db.contratos.documento_proveedor == documento).select(conteo, suma).first()
+    )
+
+    stats = {
+        "total_contratos": stats_query[conteo] or 0,
+        "valor_total": float(stats_query[suma] or 0),
+        "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
+    }
+
+    sanciones = db(db.sancionados.documento == documento).select()
+
+    context = {
+        "request": request,
+        "proveedor": proveedor,
+        "contratos": contratos,
+        "stats": stats,
+        "sanciones": sanciones,
+    }
+    return templates.TemplateResponse("proveedor_detalle.html", context)
