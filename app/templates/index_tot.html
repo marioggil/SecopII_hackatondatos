@@ -1,7 +1,10 @@
-<div style="display: flex; height: calc(100vh - 80px); width: 100%;">
+<div style="display: flex; height: calc(100vh - 80px); width: 100%; position: relative;">
     <!-- Panel Lateral de Filtros -->
-    <div style="width: 300px; background: white; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 10; overflow-y: auto;">
-        <h3 style="margin-top: 0; color: var(--color-primary-dark); font-size: 1.2rem; border-bottom: 2px solid var(--color-border); padding-bottom: 10px;">Filtros del Grafo</h3>
+    <div id="sidebar-filtros" style="width: 300px; background: white; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 10; overflow-y: auto; overflow-x: hidden; transition: all 0.3s ease;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--color-border); padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: var(--color-primary-dark); font-size: 1.2rem; white-space: nowrap;">Filtros del Grafo</h3>
+            <button onclick="toggleFiltros()" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--color-text-secondary); line-height: 1;" title="Ocultar filtros">&times;</button>
+        </div>
         
         <form id="filtros-grafo" hx-get="/html/graph_rel/" hx-target="#graph-container" hx-trigger="change, submit">
             
@@ -57,6 +60,11 @@
             <button type="reset" class="btn" style="width: 100%; margin-top: 10px; background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border);" onclick="setTimeout(() => htmx.trigger('#filtros-grafo', 'submit'), 50)">Limpiar</button>
         </form>
     </div>
+
+    <!-- Botón Flotante para mostrar filtros -->
+    <button id="btn-show-filtros" onclick="toggleFiltros()" style="position: absolute; top: 15px; left: 15px; z-index: 9999; background: var(--color-primary-dark); border: none; border-radius: 4px; padding: 10px 15px; cursor: pointer; display: none; box-shadow: var(--shadow-md); font-weight: bold; color: white; transition: all 0.2s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='var(--shadow-md)'">
+        &#9776; Mostrar Filtros
+    </button>
 
     <!-- Contenedor del Grafo -->
     <div id="graph-container" style="flex: 1; position: relative; overflow: hidden; background: #f0f2f5; display: flex; flex-direction: column;" hx-get="/html/graph_rel/" hx-trigger="load">

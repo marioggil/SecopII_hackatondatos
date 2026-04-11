@@ -166,6 +166,64 @@ async def section_cards_proveedores(request: Request):
     return templates.TemplateResponse("section_cards_prov.html", context)
 
 
+@app.get("/html/section_cards_sancionados", response_class=HTMLResponse)
+async def section_cards_sancionados(request: Request):
+    # Buscar todos los documentos que tienen alguna sanción
+    docs_sancionados = [
+        r.documento
+        for r in db(db.sancionados.id > 0).select(
+            db.sancionados.documento, distinct=True
+        )
+        if r.documento
+    ]
+
+    if not docs_sancionados:
+        return HTMLResponse("")  # Si no hay sancionados, no mostramos nada
+
+    conteo_prov = db.contratos.documento_proveedor.count()
+    suma_prov = db.contratos.valor_contrato.sum()
+
+    # Filtrar los contratos donde el proveedor esté en la lista de sancionados
+    res_prov = db(db.contratos.documento_proveedor.belongs(docs_sancionados)).select(
+        db.contratos.documento_proveedor,
+        db.contratos.proveedor_adjudicado,
+        conteo_prov,
+        suma_prov,
+        groupby=[db.contratos.documento_proveedor, db.contratos.proveedor_adjudicado],
+    )
+
+    if not res_prov:
+        return HTMLResponse("")
+
+    res_list = list(res_prov)
+
+    # Lógica solicitada: máximo 10, si hay más, aleatorios.
+    if len(res_list) > 10:
+        res_list = random.sample(res_list, 10)
+    else:
+        # Si son 10 o menos, los ordenamos por cantidad de contratos
+        res_list.sort(key=lambda x: x[conteo_prov], reverse=True)
+
+    top_sancionados = []
+    for r in res_list:
+        nombre = r.contratos.proveedor_adjudicado or "Desconocido"
+        if len(nombre) > 50:
+            nombre = nombre[:47] + "..."
+
+        top_sancionados.append(
+            {
+                "documento": r.contratos.documento_proveedor,
+                "nombre": nombre,
+                "contratos": r[conteo_prov],
+                "valor": float(r[suma_prov] or 0),
+            }
+        )
+
+    context = {"request": request, "top_sancionados": top_sancionados}
+
+    return templates.TemplateResponse("section_cards_sancionados.html", context)
+
+
 @app.get("/html/footer", response_class=HTMLResponse)
 async def footer(request: Request):
     context = {"request": request}
@@ -1035,6 +1093,18 @@ async def proveedor_detalle(
 
     sanciones = db(db.sancionados.documento == documento).select()
 
+    contratos_post_sancion = 0
+    if len(sanciones) > 0:
+        fechas_sanciones = [
+            s.fecha_efectos_juridicos for s in sanciones if s.fecha_efectos_juridicos
+        ]
+        if fechas_sanciones:
+            primera_sancion = min(fechas_sanciones)
+            contratos_post_sancion = db(
+                (db.contratos.documento_proveedor == documento)
+                & (db.contratos.fecha_firma >= primera_sancion)
+            ).count()
+
     context = {
         "request": request,
         "proveedor": proveedor,
@@ -1042,6 +1112,7 @@ async def proveedor_detalle(
         "stats": stats,
         "chart_data": chart_data,
         "sanciones": sanciones,
+        "contratos_post_sancion": contratos_post_sancion,
         "page": page,
         "search": search or "",
         "sort_by": sort_by,

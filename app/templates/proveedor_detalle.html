@@ -23,9 +23,16 @@
     tr:hover { background: rgba(0,0,0,0.02); }
     a { color: var(--color-primary-medium); text-decoration: none; font-weight: 500; }
     a:hover { text-decoration: underline; }
-    .sancion-alert { background: rgba(229, 57, 53, 0.1); border-left: 4px solid var(--color-error); padding: 15px 20px; margin: 0 20px 20px; border-radius: 4px; }
-    .sancion-alert h3 { margin: 0 0 5px 0; color: var(--color-error); }
-    .sancion-alert p { margin: 0; color: var(--color-text-primary); font-size: 0.95rem; }
+    .sancion-alert { background: rgba(229, 57, 53, 0.05); border: 2px solid var(--color-error); padding: 20px; margin: 0 20px 20px; border-radius: var(--radius-md); box-shadow: 0 4px 15px rgba(229, 57, 53, 0.2); }
+    .sancion-alert h3 { margin: 0 0 15px 0; color: var(--color-error); font-size: 1.4rem; text-transform: uppercase; border-bottom: 1px solid rgba(229, 57, 53, 0.2); padding-bottom: 10px; }
+    .sancion-item { background: white; padding: 15px; border-left: 4px solid var(--color-warning); margin-bottom: 10px; border-radius: 4px; box-shadow: var(--shadow-sm); }
+    .sancion-item p { margin: 5px 0; color: var(--color-text-primary); font-size: 0.95rem; }
+    .sancion-critica { background: var(--color-error); color: white; padding: 15px; border-radius: var(--radius-md); margin-top: 15px; text-align: center; font-weight: bold; font-size: 1.1rem; box-shadow: 0 4px 10px rgba(229, 57, 53, 0.4); animation: pulse 2s infinite; }
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(229, 57, 53, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
+    }
   </style>
 </head>
 <body>
@@ -36,10 +43,24 @@
 
     {% if sanciones %}
     <div class="sancion-alert">
-        <h3>⚠️ Alerta de Sanción / Inhabilitación</h3>
-        {% for s in sanciones %}
-        <p><strong>Origen:</strong> {{ s.origen }} | <strong>Tipo:</strong> {{ s.tipo_inhabilitacion }} | <strong>Fecha:</strong> {{ s.fecha_efectos_juridicos }}</p>
-        {% endfor %}
+        <h3>⚠️ ADVERTENCIA: Proveedor con Sanciones o Antecedentes</h3>
+        
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            {% for s in sanciones %}
+            <div class="sancion-item">
+                <p>📅 <strong>Fecha de efecto:</strong> {{ s.fecha_efectos_juridicos or 'No registrada' }}</p>
+                <p>🛑 <strong>Tipo de Inhabilitación:</strong> {{ s.tipo_inhabilitacion or 'No especificado' }}</p>
+                <p>🏛️ <strong>Origen de la sanción:</strong> {{ s.origen or 'Desconocido' }}</p>
+                <p>📄 <strong>Resolución:</strong> {{ s.numero_resolucion or 'N/A' }}</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if contratos_post_sancion > 0 %}
+        <div class="sancion-critica">
+            🚨 ALERTA CRÍTICA: Este proveedor recibió {{ contratos_post_sancion }} contrato(s) posterior(es) a su fecha de inhabilitación.
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
