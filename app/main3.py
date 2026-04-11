@@ -99,6 +99,7 @@ async def section_cards(request: Request):
 
         top_entidades.append(
             {
+                "nit": r.contratos.nit_entidad,
                 "nombre": nombre,
                 "contratos": r[conteo_ent],
                 "valor": float(r[suma_ent] or 0),
@@ -128,6 +129,41 @@ async def global_chart(request: Request):
 
     context = {"request": request, "chart_data": chart_data}
     return templates.TemplateResponse("global_chart.html", context)
+
+
+@app.get("/html/section_cards_proveedores", response_class=HTMLResponse)
+async def section_cards_proveedores(request: Request):
+    # Top 10 Proveedores con más contratos
+    conteo_prov = db.contratos.documento_proveedor.count()
+    suma_prov = db.contratos.valor_contrato.sum()
+    res_prov = db(db.contratos.documento_proveedor != None).select(
+        db.contratos.documento_proveedor,
+        db.contratos.proveedor_adjudicado,
+        conteo_prov,
+        suma_prov,
+        groupby=[db.contratos.documento_proveedor, db.contratos.proveedor_adjudicado],
+        orderby=~conteo_prov,
+        limitby=(0, 10),
+    )
+
+    top_proveedores = []
+    for r in res_prov:
+        nombre = r.contratos.proveedor_adjudicado or "Desconocido"
+        if len(nombre) > 50:
+            nombre = nombre[:47] + "..."
+
+        top_proveedores.append(
+            {
+                "documento": r.contratos.documento_proveedor,
+                "nombre": nombre,
+                "contratos": r[conteo_prov],
+                "valor": float(r[suma_prov] or 0),
+            }
+        )
+
+    context = {"request": request, "top_proveedores": top_proveedores}
+
+    return templates.TemplateResponse("section_cards_prov.html", context)
 
 
 @app.get("/html/footer", response_class=HTMLResponse)

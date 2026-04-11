@@ -15,8 +15,10 @@
 </head>
 <body>
     <div hx-get="/html/header" hx-trigger="load" hx-swap="innerHTML" class="title" id="title"></div> 
-    <div hx-get="/html/section_cards" hx-trigger="load" hx-swap="innerHTML" class="cards-container"></div>
+    <div hx-get="/html/index_info" hx-trigger="load" hx-swap="outerHTML"></div>
     <div hx-get="/html/global_chart" hx-trigger="load" hx-swap="innerHTML"></div>
+    <div hx-get="/html/section_cards" hx-trigger="load" hx-swap="innerHTML" class="cards-container"></div>
+    <div hx-get="/html/section_cards_proveedores" hx-trigger="load" hx-swap="innerHTML" class="cards-container" style="padding-top: 0;"></div>
   
 
 </body>
