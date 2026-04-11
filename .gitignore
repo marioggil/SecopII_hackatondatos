@@ -21,3 +21,5 @@ data/NoUsados/SECOP_II_-_Contratos_Electrónicos_20251118.csv
 data/NoUsados/SECOP_II_-_Procesos_de_Contratación_20251120.csv
 app/databases/*
 databases/*
+main.ipynb
+app/VerificacionDatos.ipynb
