@@ -1197,7 +1197,7 @@ async def populed(request: Request):
         claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
     except:
         claveApiSocrata = os.getenv("claveApiSocrata")
-    client = Socrata("www.datos.gov.co", claveApiSocrata)
+    client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
     print(client)
     SancionesSecopI = "4n4q-k399"
     reloj = time.time()
