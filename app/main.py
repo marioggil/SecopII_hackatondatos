@@ -1290,3 +1290,26 @@ def limpiar_valor(valor):
             return None
 
     return valor
+
+def parsear_fecha(fecha_str):
+    """
+    Parsea una fecha en diferentes formatos.
+    Soporta: DD/MM/YYYY, YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS.fff
+    """
+    if not fecha_str:
+        return None
+
+    fecha_limpia = limpiar_valor(fecha_str)
+    if not fecha_limpia:
+        return None
+
+    # Formatos comunes
+    formatos = ["%d/%m/%Y", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]
+
+    for formato in formatos:
+        try:
+            return datetime.strptime(fecha_limpia, formato).date()
+        except ValueError:
+            continue
+
+    return None
