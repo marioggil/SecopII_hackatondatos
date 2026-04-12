@@ -1,18 +1,16 @@
 # Roadmap y Propuestas de Evolución Arquitectónica
 
-Este documento expone las diferentes directrices y rutas de desarrollo futuro planteadas para escalar la herramienta de análisis y auditoría contractual (*Secop Hackatondatos*). Las propuestas buscan robustecer la capa analítica, optimizar el rendimiento y agregar automatización nativa a los pipelines de ingesta.
+Este documento expone las diferentes ideas o rutas de desarrollo futuro planteadas para escalar la herramienta de análisis y auditoría contractual (*Secop Visual*). Las propuestas buscan robustecer la capa analítica, optimizar el rendimiento y agregar automatización nativa a los pipelines de ingesta.
 
 ---
 
 ## 1. Análisis de Redes y Grafos de Conocimiento (Knowledge Graphs)
 
-La estructuración actual de datos modela las identidades operacionales de forma relacional (Contratos, Entidades, Personas). Sin embargo, la detección de esquemas de colusión requiere un enfoque de grafos.
+La estructuración actual de datos modela las identidades operacionales de forma relacional (Contratos, Entidades, Personas).
 
-### Especificaciones Técnicas:
-- **Estructura Propuesta:** Migrar parte interactiva de la capa a una base de datos orientada a grafos (e.g., Neo4j) o utilizar Apache Age sobre PostgreSQL.
-- **Nodos Principales:** `Persona_Natural`, `Persona_Juridica`, `Entidad_Publica`, `Contrato`.
-- **Aristas (Edges):** `REPRESENTA_A`, `ADJUDICADO_A`, `CONTRATA_A`.
-- **Objetivo:** Ejecutar algoritmos de centralidad, detección de comunidades (Louvain) y recorridos de profundidad para identificar rápidamente redes cerradas de contratación (ej. múltiples empresas compitiendo que comparten familiares en la junta directiva).
+### Ideas sin desarrollar en profundidad:
+
+- Ejecutar algoritmos de centralidad, detección de comunidades (Louvain) y recorridos de profundidad para identificar rápidamente redes cerradas de contratación.
 
 ## 2. Pipeline de Detección de Anomalías (Machine Learning / Heurística)
 
@@ -21,20 +19,20 @@ Actualmente las validaciones cruzan inhabilitaciones de forma determinística ba
 ### Especificaciones Técnicas:
 - **Modelado:** Implementar algoritmos no supervisados como Isolation Forests o Autoencoders para definir clusters de normalidad (basándose en modalidad de contratación y sector).
 - **Métricas:** Desviación en el monto adjudicado comparado con promedios móviles sectoriales, varianza en tiempos de ejecución esperados, y ratio anormal de adiciones contractuales.
-- **Arquitectura:** Microservicio gRPC/FastAPI en Python montado sobre Scikit-Learn/XGBoost para generar scores de "riesgo de corrupción" a los contratos nuevos de manera automatizada.
+- **Arquitectura:** Microservicio gRPC/FastAPI en Python montado sobre Scikit-Learn/XGBoost para generar scores de "riesgo de corrupción" a los contratos nuevos de manera automatizada, se podria hacer una ruta de entrenamiento con mlflow y  despliegue de modelos propios.
 
 ## 3. Ingesta Automática y Arquitectura Basada en Eventos
 
-El sistema depende de procesos sincrónicos para ingestar la data. Para escalar de forma eficiente y mantenerse a la par con la data gubernamental diaria (SECOP II), requiere automatización en background.
+El sistema depende de procesos sincrónicos para ingestar la data. Para escalar de forma eficiente y mantenerse a la par con la data gubernamental se intentaria hacer actualizaciones cada semana  aunque la informacion es diaria para ir reduciendo los tiempos de actualizacion, requiere automatización en background.
 
 ### Especificaciones Técnicas:
-- **Procesamiento Asíncrono:** Instauración de Celery Workers utilizando Redis o RabbitMQ como message broker para orquestar los pipelines ETL.
+- **Procesamiento Asíncrono:** Una propuesta sacada con investigacion guiada por AI es Instauración de Celery Workers utilizando Redis o RabbitMQ como message broker para orquestar los pipelines ETL, tendria que ver si esto seria la mejor opcion para este proyecto.
 - **Scheduling:** Celery Beat (o temporalidades de CRON en orquestador) para capturar iterativamente los paginados proveídos por la API Socrata (Open Data) de SECOP, operando sin interacción del usuario.
 - **Persistencia de Estados:** Guardar los timestamps procesados en caché para que las fallas de red implementen auto-retry y preserven la idempotencia del insert.
 
 ## 4. Motor Búsqueda Full-Text (FTS) e In-Memory Cache
 
-Almacenar millones de registros contractuales generará cuellos de botella al realizar consultas ILIKE nativas sobre campos de texto libre como "Objeto del Contrato".
+Almacenar millones de registros contractuales generará cuellos de botella al realizar consultas ILIKE nativas sobre campos de texto libre como "Objeto del Contrato", este tambien es un campo desconocido para el desarrolador del proyecto pero se puede explorar.
 
 ### Especificaciones Técnicas:
 - **Motores Indexadores:** Apalancar Meilisearch, Typesense o ElasticSearch para texto.
@@ -43,9 +41,9 @@ Almacenar millones de registros contractuales generará cuellos de botella al re
 
 ## 5. Módulo de Business Intelligence (BI) e Interfaces Analíticas Libres
 
-Como herramienta de auditoría para un "Hackathon de datos", destrancar el activo de datos y permitirle al analista llevárselo y cruzarlo externamente añade un valor incalculable.
+Como herramienta de auditoría para un destrancar el activo de datos y permitirle al analista llevárselo y cruzarlo externamente añade un valor incalculable.
 
 ### Especificaciones Técnicas:
 - **Almacenamiento Columnar:** Funcionalidades de volcado periódico de la bdd estructurada a formatos OLAP como Apache Parquet, reduciendo el peso y facilitando lecturas analíticas enormes.
 - **Reporting Nativo:** Rutas programáticas para crear "Dossier de Proveedor" en PDF (generados en el server mediante headless browsers o librerías nativas) detallando su historial sancionatorio y estadístico.
-- **Data Hookups:** Integración habilitada para plataformas como Apache Superset, Metabase o PowerBI directamente leyendo de sub-sistemas OLAP o réplicas read-only.
+- **Data Hookups:** Integración habilitada para PowerBI directamente leyendo de sub-sistemas OLAP o réplicas read-only.
