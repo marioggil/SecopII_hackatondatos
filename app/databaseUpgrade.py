@@ -1525,24 +1525,24 @@ if __name__ == "__main__":
     # ==========================================
     # 1. Sincronizar Sanciones SECOP I
     # ==========================================
-    # t = 0
-    # for item in client.get_all(SancionesSecopI):
-    #     guardar_amonestado_secop(item)
-    #     t += 1
-    #     if t % 500 == 0:
-    #         db.commit()
-    # db.commit()
+    t = 0
+    for item in client.get_all(SancionesSecopI):
+        guardar_amonestado_secop(item)
+        t += 1
+        if t % 500 == 0:
+            db.commit()
+    db.commit()
 
     # ==========================================
     # 2. Sincronizar Antecedentes SIRI
     # ==========================================
-    # t = 0
-    # for item in client.get_all(AntededentesSiri):
-    #     guardar_sancionado_siri(item)
-    #     t += 1
-    #     if t % 500 == 0:
-    #         db.commit()
-    # db.commit()
+    t = 0
+    for item in client.get_all(AntededentesSiri):
+        guardar_sancionado_siri(item)
+        t += 1
+        if t % 500 == 0:
+            db.commit()
+    db.commit()
 
     # ==========================================
     # 3. Sincronizar Contratos (Bulk Optimization)
@@ -1607,13 +1607,13 @@ if __name__ == "__main__":
     print(f"Buscando adiciones para {len(contractsindb)} contratos...")
     # Podríamos optimizarlo armando queries con IN (...) en lugar de hacer 1 query por contrato
     # pero para mantenerlo simple y funcional por ahora:
-    # t = 0
-    # for contracindb in contractsindb:
-    #     for item in client.get(AdicionesSecopII, where=f"id_contrato == '{contracindb}'"):
-    #         t += 1
-    #         guardar_adiciones([item], actualizar_existentes=True)
-    #         if t % 500 == 0:
-    #             print(f"Adiciones guardadas: {t}")
+    t = 0
+    for contracindb in contractsindb:
+        for item in client.get(AdicionesSecopII, where=f"id_contrato == '{contracindb}'"):
+            t += 1
+            guardar_adiciones([item], actualizar_existentes=True)
+            if t % 500 == 0:
+                print(f"Adiciones guardadas: {t}")
 
     print(f"Buscando ejecuciones para {len(contractsindb)} contratos...")
     # t = 0
