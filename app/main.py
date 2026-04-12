@@ -1189,3 +1189,18 @@ async def proveedor_detalle(
         return templates.TemplateResponse("proveedor_filas.html", context)
 
     return templates.TemplateResponse("proveedor_detalle.html", context)
+
+@app.get("/populed", response_class=HTMLResponse)
+async def populed(request: Request):
+    claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
+    client = Socrata("www.datos.gov.co", claveApiSocrata)
+    SancionesSecopI = "4n4q-k399"
+    reloj = time.time()
+    t = 0
+    for item in client.get_all(SancionesSecopI):
+        guardar_amonestado_secop(item)
+        t += 1
+        if t % 500 == 0:
+            db.commit()
+    db.commit()
+    return {"listo": True, "tiempo": time.time() - reloj}
