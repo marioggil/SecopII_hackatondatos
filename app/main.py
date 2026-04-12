@@ -1207,3 +1207,65 @@ async def populed(request: Request):
             db.commit()
     db.commit()
     return {"listo": True, "tiempo": time.time() - reloj}
+
+
+def guardar_amonestado_secop(datos_secop):
+    """
+    Procesa y guarda un registro de SECOP.
+
+    Args:
+        datos_secop (dict): Diccionario con datos originales del SECOP
+
+    Returns:
+        dict: Resultado de la operación
+    """
+    datos_normalizados = extraer_datos_secop(datos_secop)
+
+    if not datos_normalizados:
+        return {
+            "exito": False,
+            "accion": None,
+            "mensaje": "No se pudieron extraer datos válidos del SECOP",
+        }
+
+    return guardar_sancionado(datos_normalizados)
+
+
+def extraer_datos_secop(datos_secop):
+    """
+    Extrae los campos relevantes de un registro SECOP.
+
+    Args:
+        datos_secop (dict): Diccionario con datos del SECOP
+
+    Returns:
+        dict: Datos normalizados
+    """
+    documento = normalizar_documento(datos_secop.get("documento_contratista"))
+
+    if not documento:
+        return None
+
+    return {
+        "documento": documento,
+        "tipo_inhabilitacion": "AMONESTACION",  # Tipo fijo para SECOP
+        "primer_nombre": None,
+        "segundo_nombre": None,
+        "primer_apellido": None,
+        "segundo_apellido": None,
+        "nombre_completo": limpiar_valor(datos_secop.get("nombre_contratista")),
+        "sancion": None,
+        "fecha_efectos_juridicos": parsear_fecha(datos_secop.get("fecha_de_firmeza")),
+        "numero_resolucion": limpiar_valor(datos_secop.get("numero_de_resolucion")),
+        "origen": "SECOP",
+    }
+
+def normalizar_documento(documento):
+    """
+    Normaliza un documento eliminando espacios y caracteres innecesarios.
+    """
+    if not documento:
+        return None
+
+    doc_limpio = str(documento).strip().replace(" ", "")
+    return doc_limpio if doc_limpio else None
