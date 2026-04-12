@@ -5,6 +5,7 @@ import json
 import pandas as pd
 import time
 from models.db import db
+from databaseUpgrade import verificar_registro_diferente
 from fastapi import FastAPI, Query, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel, field_validator, computed_field, Field as PydanticField
 from typing import Dict, Annotated, Literal, Union, Optional, List
@@ -1197,18 +1198,44 @@ async def populed(request: Request):
         claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
     except:
         claveApiSocrata = os.getenv("claveApiSocrata")
+
+    print(f"API Key: {claveApiSocrata[:20] if claveApiSocrata else 'None'}...")
+
     client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
-    print(client)
     SancionesSecopI = "4n4q-k399"
     reloj = time.time()
     t = 0
+    insertados = 0
+    duplicados = 0
+    errores = 0
+
     for item in client.get_all(SancionesSecopI):
-        guardar_amonestado_secop(item)
+        resultado = guardar_amonestado_secop(item)
+        if resultado:
+            if resultado.get("exito"):
+                if resultado.get("accion") == "insertado":
+                    insertados += 1
+                elif resultado.get("accion") == "duplicado":
+                    duplicados += 1
+            else:
+                errores += 1
+                print(f"Error: {resultado.get('mensaje')}")
         t += 1
         if t % 500 == 0:
             db.commit()
+            print(
+                f"Procesados: {t}, Insertados: {insertados}, Duplicados: {duplicados}, Errores: {errores}"
+            )
+
     db.commit()
-    return {"listo": True, "tiempo": time.time() - reloj}
+    return {
+        "listo": True,
+        "tiempo": time.time() - reloj,
+        "total": t,
+        "insertados": insertados,
+        "duplicados": duplicados,
+        "errores": errores,
+    }
 
 
 def guardar_amonestado_secop(datos_secop):
