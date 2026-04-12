@@ -3,6 +3,7 @@ from pydal import DAL, Field
 import os
 import json
 import pandas as pd
+from decimal import Decimal
 import time
 from models.db import db
 from databaseUpgrade import (
@@ -18,6 +19,10 @@ from databaseUpgrade import (
     guardar_entidad,
     procesar_contrato_completo,
     transformar_nombres_columnas,
+    guardar_adiciones,
+    guardar_ejecuciones,
+    transformar_nombres_columnas_adicion,
+    transformar_nombres_columnas_ejecucion,
 )
 from fastapi import FastAPI, Query, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel, field_validator, computed_field, Field as PydanticField
@@ -28,9 +33,18 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import Request
 import time
 import os
+from decimal import Decimal
+
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
+
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
-import json
 import random
 import requests
 import uuid
@@ -175,7 +189,7 @@ async def global_chart(request: Request):
     chart_data = "[]"
     try:
         chart_data_raw = db.executesql(chart_query, as_dict=True)
-        chart_data = json.dumps(chart_data_raw)
+        chart_data = json.dumps(chart_data_raw, cls=DecimalEncoder)
     except Exception as e:
         print("Error global chart:", e)
 
@@ -1079,7 +1093,7 @@ async def entidad_detalle(
             chart_data_raw = db.executesql(
                 chart_query, placeholders=[nit], as_dict=True
             )
-            chart_data = json.dumps(chart_data_raw)
+            chart_data = json.dumps(chart_data_raw, cls=DecimalEncoder)
         except Exception as e:
             print("Error chart:", e)
 
@@ -1169,7 +1183,7 @@ async def proveedor_detalle(
             chart_data_raw = db.executesql(
                 chart_query, placeholders=[documento], as_dict=True
             )
-            chart_data = json.dumps(chart_data_raw)
+            chart_data = json.dumps(chart_data_raw, cls=DecimalEncoder)
         except Exception as e:
             print("Error chart:", e)
 
@@ -1354,4 +1368,93 @@ async def procesar_contratos_background():
 
     print(
         f"[CONTRATOS] COMPLETADO - Total revisados: {total_procesados}, Nuevos insertados: {insertados}"
+    )
+
+
+@app.get("/populate/adiciones-ejecuciones")
+async def populate_adiciones_ejecuciones(request: Request):
+    asyncio.create_task(procesar_adiciones_ejecuciones_background())
+    return {
+        "status": "iniciado",
+        "mensaje": "El procesamiento de adiciones y ejecuciones ha comenzado en background",
+    }
+
+
+async def procesar_adiciones_ejecuciones_background():
+    try:
+        claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
+    except:
+        claveApiSocrata = os.getenv("claveApiSocrata")
+
+    print(
+        f"[ADICIONES_EJECUCIONES] API Key: {claveApiSocrata[:20] if claveApiSocrata else 'None'}..."
+    )
+
+    client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
+    AdicionesSecopII = "cb9c-h8sn"
+    EjecucionesSecopII = "mfmm-jqmq"
+
+    contratosindb = db(db.contratos).select(db.contratos.id_contrato, distinct=True)
+    contractsindb = [c.id_contrato for c in contratosindb]
+
+    print(
+        f"[ADICIONES_EJECUCIONES] Buscando adiciones para {len(contractsindb)} contratos..."
+    )
+
+    t_adiciones = 0
+    insertados_adiciones = 0
+
+    for contracindb in contractsindb:
+        try:
+            for item in client.get(
+                AdicionesSecopII, where=f"id_contrato == '{contracindb}'"
+            ):
+                item_limpio = transformar_nombres_columnas_adicion(item)
+                result = guardar_adiciones([item_limpio], actualizar_existentes=True)
+                if result.get("insertados", 0) > 0:
+                    insertados_adiciones += 1
+                t_adiciones += 1
+                if t_adiciones % 500 == 0:
+                    db.commit()
+                    print(
+                        f"[ADICIONES_EJECUCIONES] Adiciones procesadas: {t_adiciones}, insertadas: {insertados_adiciones}"
+                    )
+        except Exception as e:
+            print(f"[ADICIONES_EJECUCIONES] Error con contrato {contracindb}: {e}")
+            continue
+
+    db.commit()
+    print(
+        f"[ADICIONES_EJECUCIONES] Adiciones completadas: {t_adiciones} procesadas, {insertados_adiciones} insertadas"
+    )
+
+    print(
+        f"[ADICIONES_EJECUCIONES] Buscando ejecuciones para {len(contractsindb)} contratos..."
+    )
+
+    t_ejecuciones = 0
+    insertados_ejecuciones = 0
+
+    for contracindb in contractsindb:
+        try:
+            for item in client.get(
+                EjecucionesSecopII, where=f"identificadorcontrato == '{contracindb}'"
+            ):
+                item_limpio = transformar_nombres_columnas_ejecucion(item)
+                result = guardar_ejecuciones([item_limpio])
+                if result.get("insertados", 0) > 0:
+                    insertados_ejecuciones += 1
+                t_ejecuciones += 1
+                if t_ejecuciones % 500 == 0:
+                    db.commit()
+                    print(
+                        f"[ADICIONES_EJECUCIONES] Ejecuciones procesadas: {t_ejecuciones}, insertadas: {insertados_ejecuciones}"
+                    )
+        except Exception as e:
+            print(f"[ADICIONES_EJECUCIONES] Error con contrato {contracindb}: {e}")
+            continue
+
+    db.commit()
+    print(
+        f"[ADICIONES_EJECUCIONES] COMPLETADO - Adiciones: {insertados_adiciones}, Ejecuciones: {insertados_ejecuciones}"
     )
