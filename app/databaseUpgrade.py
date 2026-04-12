@@ -6,6 +6,7 @@ import pandas as pd
 from sodapy import Socrata
 import time
 from models.db import db
+
 # Configuración de la base de datos
 pwd = os.path.dirname("private/experiment_config.json")
 
@@ -120,6 +121,40 @@ def limpiar_valor(valor):
     return valor
 
 
+MAX_DECIMAL_15_2 = 10**13 - 1  # 9,999,999,999,999.99
+
+
+def limpiar_valor_numerico(valor, maximo=MAX_DECIMAL_15_2):
+    """Limpia valores numéricos, convirtiendo strings y recortando si excede el máximo."""
+    if valor is None:
+        return None
+
+    if isinstance(valor, (int, float)):
+        if abs(valor) > maximo:
+            return maximo if valor > 0 else -maximo
+        return valor
+
+    if isinstance(valor, str):
+        valor = valor.strip()
+        valores_nulos = [
+            "no definido",
+            "no válido",
+            "sin descripcion",
+            "sin descripción",
+        ]
+        if valor.lower() in valores_nulos:
+            return None
+        try:
+            num = float(valor.replace(",", "").replace("$", "").strip())
+            if abs(num) > maximo:
+                return maximo if num > 0 else -maximo
+            return num
+        except (ValueError, AttributeError):
+            return None
+
+    return valor
+
+
 def transformar_nombres_columnas(registro, mapeo=None):
     """
     Transforma los nombres de las columnas según el mapeo proporcionado.
@@ -137,10 +172,34 @@ def transformar_nombres_columnas(registro, mapeo=None):
 
     registro_transformado = {}
 
+    # Campos numéricos que necesitan 处理 especiales
+    campos_numericos = {
+        "valor_contrato",
+        "valor_pago_adelantado",
+        "valor_facturado",
+        "valor_pendiente_pago",
+        "valor_pagado",
+        "valor_amortizado",
+        "valor_pendiente_amortizacion",
+        "valor_pendiente_ejecucion",
+        "saldo_cdp",
+        "saldo_vigencia",
+        "presupuesto_pgn",
+        "sistema_participaciones",
+        "sistema_regalias",
+        "recursos_propios_alcaldias",
+        "recursos_credito",
+        "recursos_propios",
+        "dias_adicionados",
+    }
+
     for key_original, valor in registro.items():
-        # Usa el nombre mapeado o el original si no existe en el mapeo
         key_nuevo = mapeo.get(key_original, key_original)
-        registro_transformado[key_nuevo] = limpiar_valor(valor)
+
+        if key_nuevo in campos_numericos:
+            registro_transformado[key_nuevo] = limpiar_valor_numerico(valor)
+        else:
+            registro_transformado[key_nuevo] = limpiar_valor(valor)
 
     return registro_transformado
 
@@ -1610,7 +1669,9 @@ if __name__ == "__main__":
     # pero para mantenerlo simple y funcional por ahora:
     t = 0
     for contracindb in contractsindb:
-        for item in client.get(AdicionesSecopII, where=f"id_contrato == '{contracindb}'"):
+        for item in client.get(
+            AdicionesSecopII, where=f"id_contrato == '{contracindb}'"
+        ):
             t += 1
             guardar_adiciones([item], actualizar_existentes=True)
             if t % 500 == 0:
@@ -1619,7 +1680,9 @@ if __name__ == "__main__":
     print(f"Buscando ejecuciones para {len(contractsindb)} contratos...")
     t = 0
     for contracindb in contractsindb:
-        for item in client.get(EjecucionesSecopII, where=f"identificadorcontrato == '{contracindb}'"):
+        for item in client.get(
+            EjecucionesSecopII, where=f"identificadorcontrato == '{contracindb}'"
+        ):
             t += 1
             guardar_ejecuciones([item])
             if t % 500 == 0:
