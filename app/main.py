@@ -1228,6 +1228,15 @@ async def populed(request: Request):
             )
 
     db.commit()
+    AntededentesSiri = "iaeu-rcn6"
+    reloj = time.time()
+    t = 0
+    for item in client.get_all(AntededentesSiri):
+        guardar_sancionado_siri(item)
+        t += 1
+        if t % 500 == 0:
+            db.commit()
+    db.commit()
     return {
         "listo": True,
         "tiempo": time.time() - reloj,
