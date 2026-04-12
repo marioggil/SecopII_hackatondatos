@@ -81,15 +81,21 @@ async def section_cards(request: Request):
     # Top 10 Entidades con más contratos
     conteo_ent = db.contratos.nit_entidad.count()
     suma_ent = db.contratos.valor_contrato.sum()
-    res_ent = db(db.contratos.nit_entidad != None).select(
-        db.contratos.nit_entidad,
-        db.contratos.nombre_entidad,
-        conteo_ent,
-        suma_ent,
-        groupby=[db.contratos.nit_entidad, db.contratos.nombre_entidad],
-        orderby=~conteo_ent,
-        limitby=(0, 10),
-    )
+    try:
+        res_ent = db(db.contratos.nit_entidad != None).select(
+            db.contratos.nit_entidad,
+            db.contratos.nombre_entidad,
+            conteo_ent,
+            suma_ent,
+            groupby=[db.contratos.nit_entidad, db.contratos.nombre_entidad],
+            orderby=~conteo_ent,
+            limitby=(0, 10),
+        )
+    except Exception as e:
+        import traceback
+        print("ERROR in section_cards_entidades:", e)
+        traceback.print_exc()
+        res_ent = []
 
     top_entidades = []
     for r in res_ent:
@@ -113,13 +119,23 @@ async def section_cards(request: Request):
 
 @app.get("/html/global_chart", response_class=HTMLResponse)
 async def global_chart(request: Request):
-    chart_query = """
-        SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
-        FROM contratos 
-        WHERE fecha_firma IS NOT NULL
-        GROUP BY mes 
-        ORDER BY mes
-    """
+    is_postgres = db._uri.startswith('postgres')
+    if is_postgres:
+        chart_query = """
+            SELECT TO_CHAR(fecha_firma, 'YYYY-MM') as mes, count(id) as cantidad, sum(valor_contrato) as total 
+            FROM contratos 
+            WHERE fecha_firma IS NOT NULL
+            GROUP BY TO_CHAR(fecha_firma, 'YYYY-MM') 
+            ORDER BY mes
+        """
+    else:
+        chart_query = """
+            SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
+            FROM contratos 
+            WHERE fecha_firma IS NOT NULL
+            GROUP BY mes 
+            ORDER BY mes
+        """
     chart_data = "[]"
     try:
         chart_data_raw = db.executesql(chart_query, as_dict=True)
@@ -136,15 +152,21 @@ async def section_cards_proveedores(request: Request):
     # Top 10 Proveedores con más contratos
     conteo_prov = db.contratos.documento_proveedor.count()
     suma_prov = db.contratos.valor_contrato.sum()
-    res_prov = db(db.contratos.documento_proveedor != None).select(
-        db.contratos.documento_proveedor,
-        db.contratos.proveedor_adjudicado,
-        conteo_prov,
-        suma_prov,
-        groupby=[db.contratos.documento_proveedor, db.contratos.proveedor_adjudicado],
-        orderby=~conteo_prov,
-        limitby=(0, 10),
-    )
+    try:
+        res_prov = db(db.contratos.documento_proveedor != None).select(
+            db.contratos.documento_proveedor,
+            db.contratos.proveedor_adjudicado,
+            conteo_prov,
+            suma_prov,
+            groupby=[db.contratos.documento_proveedor, db.contratos.proveedor_adjudicado],
+            orderby=~conteo_prov,
+            limitby=(0, 10),
+        )
+    except Exception as e:
+        import traceback
+        print("ERROR in section_cards_proveedores:", e)
+        traceback.print_exc()
+        res_prov = []
 
     top_proveedores = []
     for r in res_prov:
@@ -996,13 +1018,23 @@ async def entidad_detalle(
             "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
         }
 
-        chart_query = """
-            SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
-            FROM contratos 
-            WHERE nit_entidad = ? AND fecha_firma IS NOT NULL
-            GROUP BY mes 
-            ORDER BY mes
-        """
+        is_postgres = db._uri.startswith('postgres')
+        if is_postgres:
+            chart_query = """
+                SELECT TO_CHAR(fecha_firma, 'YYYY-MM') as mes, count(id) as cantidad, sum(valor_contrato) as total 
+                FROM contratos 
+                WHERE nit_entidad = %s AND fecha_firma IS NOT NULL
+                GROUP BY TO_CHAR(fecha_firma, 'YYYY-MM') 
+                ORDER BY mes
+            """
+        else:
+            chart_query = """
+                SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
+                FROM contratos 
+                WHERE nit_entidad = ? AND fecha_firma IS NOT NULL
+                GROUP BY mes 
+                ORDER BY mes
+            """
         try:
             chart_data_raw = db.executesql(
                 chart_query, placeholders=[nit], as_dict=True
@@ -1076,13 +1108,23 @@ async def proveedor_detalle(
             "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
         }
 
-        chart_query = """
-            SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
-            FROM contratos 
-            WHERE documento_proveedor = ? AND fecha_firma IS NOT NULL
-            GROUP BY mes 
-            ORDER BY mes
-        """
+        is_postgres = db._uri.startswith('postgres')
+        if is_postgres:
+            chart_query = """
+                SELECT TO_CHAR(fecha_firma, 'YYYY-MM') as mes, count(id) as cantidad, sum(valor_contrato) as total 
+                FROM contratos 
+                WHERE documento_proveedor = %s AND fecha_firma IS NOT NULL
+                GROUP BY TO_CHAR(fecha_firma, 'YYYY-MM') 
+                ORDER BY mes
+            """
+        else:
+            chart_query = """
+                SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
+                FROM contratos 
+                WHERE documento_proveedor = ? AND fecha_firma IS NOT NULL
+                GROUP BY mes 
+                ORDER BY mes
+            """
         try:
             chart_data_raw = db.executesql(
                 chart_query, placeholders=[documento], as_dict=True
