@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import time
 from models.db import db
-from databaseUpgrade import verificar_registro_diferente,guardar_sancionado_siri
+from databaseUpgrade import verificar_registro_diferente,guardar_sancionado_siri,guardar_sancionado,parsear_fecha,limpiar_valor,normalizar_documento,extraer_datos_secop,guardar_amonestado_secop
 from fastapi import FastAPI, Query, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel, field_validator, computed_field, Field as PydanticField
 from typing import Dict, Annotated, Literal, Union, Optional, List
@@ -1247,152 +1247,12 @@ async def populed(request: Request):
     }
 
 
-def guardar_amonestado_secop(datos_secop):
-    """
-    Procesa y guarda un registro de SECOP.
-
-    Args:
-        datos_secop (dict): Diccionario con datos originales del SECOP
-
-    Returns:
-        dict: Resultado de la operación
-    """
-    datos_normalizados = extraer_datos_secop(datos_secop)
-
-    if not datos_normalizados:
-        return {
-            "exito": False,
-            "accion": None,
-            "mensaje": "No se pudieron extraer datos válidos del SECOP",
-        }
-
-    return guardar_sancionado(datos_normalizados)
 
 
-def extraer_datos_secop(datos_secop):
-    """
-    Extrae los campos relevantes de un registro SECOP.
-
-    Args:
-        datos_secop (dict): Diccionario con datos del SECOP
-
-    Returns:
-        dict: Datos normalizados
-    """
-    documento = normalizar_documento(datos_secop.get("documento_contratista"))
-
-    if not documento:
-        return None
-
-    return {
-        "documento": documento,
-        "tipo_inhabilitacion": "AMONESTACION",  # Tipo fijo para SECOP
-        "primer_nombre": None,
-        "segundo_nombre": None,
-        "primer_apellido": None,
-        "segundo_apellido": None,
-        "nombre_completo": limpiar_valor(datos_secop.get("nombre_contratista")),
-        "sancion": None,
-        "fecha_efectos_juridicos": parsear_fecha(datos_secop.get("fecha_de_firmeza")),
-        "numero_resolucion": limpiar_valor(datos_secop.get("numero_de_resolucion")),
-        "origen": "SECOP",
-    }
 
 
-def normalizar_documento(documento):
-    """
-    Normaliza un documento eliminando espacios y caracteres innecesarios.
-    """
-    if not documento:
-        return None
-
-    doc_limpio = str(documento).strip().replace(" ", "")
-    return doc_limpio if doc_limpio else None
 
 
-def limpiar_valor(valor):
-    """
-    Convierte valores 'No Definido', 'No definido', etc. a None.
-    También maneja diccionarios extrayendo valores específicos.
-    """
-    if isinstance(valor, dict):
-        # Si es un diccionario, intenta extraer el valor 'url' o devuelve None
-        return valor.get("url") if "url" in valor else None
-
-    if isinstance(valor, str):
-        valores_nulos = [
-            "no definido",
-            "no válido",
-            "sin descripcion",
-            "sin descripción",
-        ]
-        if valor.strip().lower() in valores_nulos:
-            return None
-
-    return valor
 
 
-def parsear_fecha(fecha_str):
-    """
-    Parsea una fecha en diferentes formatos.
-    Soporta: DD/MM/YYYY, YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS.fff
-    """
-    if not fecha_str:
-        return None
 
-    fecha_limpia = limpiar_valor(fecha_str)
-    if not fecha_limpia:
-        return None
-
-    # Formatos comunes
-    formatos = ["%d/%m/%Y", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]
-
-    for formato in formatos:
-        try:
-            return datetime.strptime(fecha_limpia, formato).date()
-        except ValueError:
-            continue
-
-    return None
-
-
-def guardar_sancionado(datos_normalizados):
-    """
-    Guarda un registro de sancionado/amonestado si es diferente.
-
-    Args:
-        datos_normalizados (dict): Datos ya normalizados
-
-    Returns:
-        dict: Resultado de la operación
-    """
-    resultado = {"exito": False, "accion": None, "mensaje": ""}
-
-    try:
-        documento = datos_normalizados.get("documento")
-
-        if not documento:
-            resultado["mensaje"] = "Documento no válido"
-            return resultado
-
-        # Verificar si el registro es diferente
-        if verificar_registro_diferente(documento, datos_normalizados):
-            # Insertar nuevo registro
-            db.sancionados.insert(**datos_normalizados)
-            db.commit()
-
-            resultado["exito"] = True
-            resultado["accion"] = "insertado"
-            resultado["mensaje"] = f"Sanción registrada para documento {documento}"
-        else:
-            resultado["exito"] = True
-            resultado["accion"] = "duplicado"
-            resultado["mensaje"] = (
-                f"Registro duplicado para documento {documento}, no se insertó"
-            )
-
-    except Exception as e:
-        db.rollback()
-        resultado["mensaje"] = f"Error: {str(e)}"
-
-    return resultado
