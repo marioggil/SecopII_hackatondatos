@@ -5,7 +5,16 @@ import json
 import pandas as pd
 import time
 from models.db import db
-from databaseUpgrade import verificar_registro_diferente,guardar_sancionado_siri,guardar_sancionado,parsear_fecha,limpiar_valor,normalizar_documento,extraer_datos_secop,guardar_amonestado_secop
+from databaseUpgrade import (
+    verificar_registro_diferente,
+    guardar_sancionado_siri,
+    guardar_sancionado,
+    parsear_fecha,
+    limpiar_valor,
+    normalizar_documento,
+    extraer_datos_secop,
+    guardar_amonestado_secop,
+)
 from fastapi import FastAPI, Query, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel, field_validator, computed_field, Field as PydanticField
 from typing import Dict, Annotated, Literal, Union, Optional, List
@@ -22,6 +31,7 @@ import random
 import requests
 import uuid
 import numpy as np
+import asyncio
 from datetime import date, datetime
 from fastapi import FastAPI, HTTPException
 from sodapy import Socrata
@@ -1194,12 +1204,22 @@ async def proveedor_detalle(
 
 @app.get("/populed")
 async def populed(request: Request):
+    asyncio.create_task(procesar_sanciones_background())
+    return {
+        "status": "iniciado",
+        "mensaje": "El procesamiento de sanciones ha comenzado en background",
+    }
+
+
+async def procesar_sanciones_background():
     try:
         claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
     except:
         claveApiSocrata = os.getenv("claveApiSocrata")
 
-    print(f"API Key: {claveApiSocrata[:20] if claveApiSocrata else 'None'}...")
+    print(
+        f"[SANCIONES] API Key: {claveApiSocrata[:20] if claveApiSocrata else 'None'}..."
+    )
 
     client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
     SancionesSecopI = "4n4q-k399"
@@ -1219,40 +1239,120 @@ async def populed(request: Request):
                     duplicados += 1
             else:
                 errores += 1
-                print(f"Error: {resultado.get('mensaje')}")
+                print(f"[SANCIONES] Error: {resultado.get('mensaje')}")
         t += 1
         if t % 500 == 0:
             db.commit()
             print(
-                f"Procesados: {t}, Insertados: {insertados}, Duplicados: {duplicados}, Errores: {errores}"
+                f"[SANCIONES] SECOP - Procesados: {t}, Insertados: {insertados}, Duplicados: {duplicados}, Errores: {errores}"
             )
 
     db.commit()
+    
+
     AntededentesSiri = "iaeu-rcn6"
-    reloj = time.time()
-    t = 0
+    reloj_siri = time.time()
+    t_siri = 0
+    insertados_siri = 0
+    duplicados_siri = 0
+    errores_siri = 0
+
     for item in client.get_all(AntededentesSiri):
-        guardar_sancionado_siri(item)
-        t += 1
-        if t % 500 == 0:
+        resultado_siri = guardar_sancionado_siri(item)
+        if resultado_siri:
+            if resultado_siri.get("exito"):
+                if resultado_siri.get("accion") == "insertado":
+                    insertados_siri += 1
+                elif resultado_siri.get("accion") == "duplicado":
+                    duplicados_siri += 1
+            else:
+                errores_siri += 1
+        t_siri += 1
+        if t_siri % 500 == 0:
             db.commit()
+            print(
+                f"[SANCIONES] SIRI - Procesados: {t_siri}, Insertados: {insertados_siri}, Duplicados: {duplicados_siri}, Errores: {errores_siri}"
+            )
+
     db.commit()
-    return {
-        "listo": True,
-        "tiempo": time.time() - reloj,
-        "total": t,
-        "insertados": insertados,
-        "duplicados": duplicados,
-        "errores": errores,
-    }
 
+    LIMIT = 2000
+    offset = 0
+    total_procesados = 0
 
+    while True:
+        # Bajar contratos por lote
+        batch = client.get(ContratosSecopII, limit=LIMIT, offset=offset)
+        if not batch:
+            break
 
+        # Extraer todos los IDs del lote
+        ids_lote = [item["id_contrato"] for item in batch if "id_contrato" in item]
 
+        # Hacer UN SOLO select a la base de datos para ver cuáles ya existen
+        existentes_query = db(db.contratos.id_contrato.belongs(ids_lote)).select(
+            db.contratos.id_contrato
+        )
+        existentes_ids = set(row.id_contrato for row in existentes_query)
 
+        # Filtrar solo los contratos nuevos
+        contratos_nuevos = [
+            item for item in batch if item.get("id_contrato") not in existentes_ids
+        ]
 
+        if contratos_nuevos:
+            print(
+                f"Lote offset {offset}: Encontrados {len(contratos_nuevos)} contratos nuevos."
+            )
+            # Insertamos todos los contratos de una (Bulk Insert)
+            # Primero transformamos y limpiamos
+            contratos_limpios = [
+                transformar_nombres_columnas(c) for c in contratos_nuevos
+            ]
+            db.contratos.bulk_insert(contratos_limpios)
 
+            # Ahora procesamos entidades y personas
+            for item in contratos_nuevos:
+                procesar_contrato_completo(item)
 
+            db.commit()
 
+        total_procesados += len(batch)
+        offset += LIMIT
 
+        # Freno de emergencia (para que no baje millones)
+        if total_procesados >= 5000:
+            print("Límite de prueba (5000) alcanzado.")
+            break
+    print("fin contratos")
+    # ==========================================
+    # 4. Sincronizar Adiciones y Ejecuciones
+    # ==========================================
+    # Obtenemos todos los IDs de contratos que tenemos en la BD
+    contratosindb = db(db.contratos).select(db.contratos.id_contrato, distinct=True)
+    contractsindb = [c.id_contrato for c in contratosindb]
 
+    print(f"Buscando adiciones para {len(contractsindb)} contratos...")
+    # Podríamos optimizarlo armando queries con IN (...) en lugar de hacer 1 query por contrato
+    # pero para mantenerlo simple y funcional por ahora:
+    t = 0
+    for contracindb in contractsindb:
+        for item in client.get(AdicionesSecopII, where=f"id_contrato == '{contracindb}'"):
+            t += 1
+            guardar_adiciones([item], actualizar_existentes=True)
+            if t % 500 == 0:
+                print(f"Adiciones guardadas: {t}")
+
+    print(f"Buscando ejecuciones para {len(contractsindb)} contratos...")
+    t = 0
+    for contracindb in contractsindb:
+        for item in client.get(EjecucionesSecopII, where=f"identificadorcontrato == '{contracindb}'"):
+            t += 1
+            guardar_ejecuciones([item])
+            if t % 500 == 0:
+                print(f"Ejecuciones guardadas: {t}")
+    print(f"[SANCIONES] SECOP completado en {time.time() - reloj:.2f}s")
+    print(f"[SANCIONES] SIRI completado en {time.time() - reloj_siri:.2f}s")
+    print(
+        f"[SANCIONES] TODO COMPLETADO - SECOP: {insertados} insertados, {duplicados} duplicados | SIRI: {insertados_siri} insertados, {duplicados_siri} duplicados"
+    )
