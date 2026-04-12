@@ -8,7 +8,9 @@ try:
 except:
     os.mkdir(pwd + '/databases')
 
-db = DAL('sqlite://contratos.db', folder='databases')
+# Dokploy / Manejo de entorno: Si existe DATABASE_URL usa Postgres (ej. postgres://user:pass@host/db), sino fallback a sqlite.
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite://contratos.db')
+db = DAL(DATABASE_URL, folder='databases')
 
 # Definición de la tabla (ejemplo simplificado, ajusta según necesites)
 db.define_table('contratos',
