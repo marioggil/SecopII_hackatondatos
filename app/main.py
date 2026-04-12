@@ -1190,12 +1190,13 @@ async def proveedor_detalle(
 
     return templates.TemplateResponse("proveedor_detalle.html", context)
 
-@app.get("/populed", response_class=HTMLResponse)
+
+@app.get("/populed")
 async def populed(request: Request):
     try:
         claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
     except:
-        claveApiSocrata=os.getenv("claveApiSocrata")
+        claveApiSocrata = os.getenv("claveApiSocrata")
     client = Socrata("www.datos.gov.co", claveApiSocrata)
     SancionesSecopI = "4n4q-k399"
     reloj = time.time()
@@ -1260,6 +1261,7 @@ def extraer_datos_secop(datos_secop):
         "origen": "SECOP",
     }
 
+
 def normalizar_documento(documento):
     """
     Normaliza un documento eliminando espacios y caracteres innecesarios.
@@ -1269,6 +1271,7 @@ def normalizar_documento(documento):
 
     doc_limpio = str(documento).strip().replace(" ", "")
     return doc_limpio if doc_limpio else None
+
 
 def limpiar_valor(valor):
     """
@@ -1290,6 +1293,7 @@ def limpiar_valor(valor):
             return None
 
     return valor
+
 
 def parsear_fecha(fecha_str):
     """
@@ -1313,6 +1317,7 @@ def parsear_fecha(fecha_str):
             continue
 
     return None
+
 
 def guardar_sancionado(datos_normalizados):
     """
