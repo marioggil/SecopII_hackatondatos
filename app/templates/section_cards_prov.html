@@ -1,0 +1,16 @@
+<div style="grid-column: 1 / -1; width: 100%; text-align: center; margin-top: 40px; margin-bottom: 20px; padding: 20px 10px;">
+    <h2 style="color: #0984e3; font-size: 2rem; margin-bottom: 10px;">Top 10 Proveedores por Volumen de Contratos</h2>
+    <p style="color: var(--color-text-secondary); font-size: 1.1rem;">Los contratistas que más adjudicaciones han recibido en la plataforma.</p>
+</div>
+
+{% for proveedor in top_proveedores %}
+<div class="card" style="padding: 10px;" onclick="window.open('/proveedor/{{ proveedor.documento }}', '_blank')">
+  <div class="container">
+    <h4 style="font-size: 1.1em; margin-bottom: 8px;"><b>{{ proveedor.nombre }}</b></h4>
+    <p style="margin: 4px 0;"><b>{{ proveedor.contratos }}</b> Contratos</p>
+    <p style="margin: 4px 0; color: var(--color-success); font-weight: bold; font-size: 1.1em;">
+      ${{ "{:,.0f}".format(proveedor.valor).replace(',', '.') }} COP
+    </p>
+  </div>
+</div>
+{% endfor %}

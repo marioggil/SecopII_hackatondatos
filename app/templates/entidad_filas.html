@@ -1,0 +1,30 @@
+{% for c in contratos %}
+<tr>
+    <td style="font-size: 0.9em; max-width: 200px; word-wrap: break-word;">{{ c.id_contrato }}<br><small style="color: var(--color-text-secondary);">{{ c.referencia_contrato }}</small></td>
+    <td>
+        {% if c.documento_proveedor %}
+            <a href="/proveedor/{{ c.documento_proveedor }}" target="_blank">{{ c.proveedor_adjudicado }}</a>
+        {% else %}
+            <span style="color: var(--color-text-secondary);">Sin proveedor registrado</span>
+        {% endif %}
+    </td>
+    <td style="font-weight: bold; color: var(--color-success);">${{ "{:,.0f}".format(c.valor_contrato or 0).replace(',', '.') }}</td>
+    <td><span class="badge {% if c.estado_contrato == 'Terminado' %}badge-success{% else %}badge-info{% endif %}">{{ c.estado_contrato }}</span></td>
+    <td style="font-size: 0.9em;">{{ c.modalidad_contratacion }}</td>
+</tr>
+{% endfor %}
+
+{% if contratos|length == 50 %}
+<tr id="cargar-mas-row">
+    <td colspan="5" style="text-align: center; padding: 20px;">
+        <button hx-get="/entidad/{{ entidad.nit_entidad }}?page={{ page + 1 }}&sort_by={{ sort_by }}&search={{ search }}"
+                hx-target="#cargar-mas-row"
+                hx-swap="outerHTML"
+                style="padding: 10px 20px; background: var(--color-primary-medium); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.3s;">
+            Cargar Más Contratos...
+        </button>
+    </td>
+</tr>
+{% elif not contratos and page == 1 %}
+<tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--color-text-secondary);">No se encontraron contratos para esta búsqueda.</td></tr>
+{% endif %}

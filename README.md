@@ -125,13 +125,13 @@ SECOP_API_KEY=tu_api_key
 
 ```bash
 # Modo desarrollo
-uv run uvicorn main:app --reload
+uv run uvicorn main3:app --reload
 
 # O si ya tienes el entorno activado
 uvicorn main:app --reload
 
 # Modo producción
-uv run uvicorn main:app --host 0.0.0.0 --port 8000
+uv run uvicorn main3:app --host 0.0.0.0 --port 8000
 ```
 
 La aplicación estará disponible en: `http://localhost:8000`
@@ -186,11 +186,11 @@ curl http://localhost:8000/api/v1/analysis/additions?limit=10
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+Este proyecto está bajo la Licencia MIT.
 
 ## 👥 Autores
 
-- Tu Nombre - [@marioggil](https://github.com/marioggil)
+- marioggil - [@marioggil](https://github.com/marioggil)
 
 
 ---

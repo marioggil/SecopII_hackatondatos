@@ -1,0 +1,73 @@
+<div style="display: flex; height: calc(100vh - 80px); width: 100%; position: relative;">
+    <!-- Panel Lateral de Filtros -->
+    <div id="sidebar-filtros" style="width: 300px; background: white; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 10; overflow-y: auto; overflow-x: hidden; transition: all 0.3s ease;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--color-border); padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: var(--color-primary-dark); font-size: 1.2rem; white-space: nowrap;">Filtros del Grafo</h3>
+            <button onclick="toggleFiltros()" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--color-text-secondary); line-height: 1;" title="Ocultar filtros">&times;</button>
+        </div>
+        
+        <form id="filtros-grafo" hx-get="/html/graph_rel/" hx-target="#graph-container" hx-trigger="change, submit">
+            
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Estado del Contrato</label>
+                <select name="estado_contrato" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <option value="">Todos</option>
+                    <option value="En ejecución">En ejecución</option>
+                    <option value="Terminado">Terminado</option>
+                    <option value="Modificado">Modificado</option>
+                    <option value="Cerrado">Cerrado</option>
+                    <option value="Suspendido">Suspendido</option>
+                    <option value="Cancelado">Cancelado</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Modalidad</label>
+                <select name="modalidad_contratacion" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <option value="">Todas</option>
+                    <option value="Contratación directa">Contratación directa</option>
+                    <option value="Licitación pública">Licitación pública</option>
+                    <option value="Mínima cuantía">Mínima cuantía</option>
+                    <option value="Concurso de méritos abierto">Concurso de méritos abierto</option>
+                    <option value="Selección Abreviada de Menor Cuantía">Selección Abreviada</option>
+                    <option value="Contratación régimen especial">Régimen Especial</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Departamento</label>
+                <select name="departamento" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <option value="">Todos</option>
+                    <option value="Distrito Capital de Bogotá">Bogotá D.C.</option>
+                    <option value="Antioquia">Antioquia</option>
+                    <option value="Valle del Cauca">Valle del Cauca</option>
+                    <option value="Cundinamarca">Cundinamarca</option>
+                    <option value="Santander">Santander</option>
+                    <option value="Atlántico">Atlántico</option>
+                    <option value="Bolívar">Bolívar</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Rango de Monto (COP)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" name="valor_minimo" placeholder="Min: 50000000" style="width: 50%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <input type="number" name="valor_maximo" placeholder="Max: 200000000" style="width: 50%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                </div>
+            </div>
+
+            <button type="submit" class="btn primary" style="width: 100%; justify-content: center; background: var(--color-primary-medium);">Aplicar Filtros</button>
+            <button type="reset" class="btn" style="width: 100%; margin-top: 10px; background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border);" onclick="setTimeout(() => htmx.trigger('#filtros-grafo', 'submit'), 50)">Limpiar</button>
+        </form>
+    </div>
+
+    <!-- Botón Flotante para mostrar filtros -->
+    <button id="btn-show-filtros" onclick="toggleFiltros()" style="position: absolute; top: 15px; left: 15px; z-index: 9999; background: var(--color-primary-dark); border: none; border-radius: 4px; padding: 10px 15px; cursor: pointer; display: none; box-shadow: var(--shadow-md); font-weight: bold; color: white; transition: all 0.2s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='var(--shadow-lg)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='var(--shadow-md)'">
+        &#9776; Mostrar Filtros
+    </button>
+
+    <!-- Contenedor del Grafo -->
+    <div id="graph-container" style="flex: 1; position: relative; overflow: hidden; background: #f0f2f5; display: flex; flex-direction: column;" hx-get="/html/graph_rel/" hx-trigger="load">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--color-text-secondary);">Cargando grafo...</div>
+    </div>
+</div>

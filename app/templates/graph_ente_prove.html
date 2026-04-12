@@ -1,0 +1,223 @@
+
+                <div class="featured-image">
+        <div id="network"></div>
+        
+    </div>
+    <script>
+const nodes = [
+    { id: 'home', name: 'Home', url: 'index.html', color: '#4285f4', size: 15 },
+    { id: 'graph_home', name: 'Graph_home', url: 'apps/graph_home.html', color: '#4285f4', size: 15 },
+    { id: 'portafolio', name: 'Portafolio', url: 'portafolio.html', color: '#4285f4', size: 15 },
+    { id: 'RNDC-Guacari_Julio2025', name: 'Rndc-guacari_julio2025', url: 'posts/rndc-guacari_julio2025.html', color: '#4285f4', size: 15 },
+    { id: 'posts', name: 'Posts', url: 'posts.html', color: '#4285f4', size: 15 },
+    { id: 'sobremi', name: 'Sobremi', url: 'sobremi.html', color: '#4285f4', size: 15 },
+    { id: 'galeria', name: 'Galeria', url: 'galeria.html', color: '#4285f4', size: 15 },
+    { id: 'contacto', name: 'Contacto', url: 'contacto.html', color: '#4285f4', size: 15 },
+    { id: 'Registro nacional despacho de carga', name: 'Registro nacional despacho de carga', url: 'https://rndc.mintransporte.gov.co/MenuPrincipal/tabid/204', color: '#4285f4', size: 25 },
+    { id: 'Información en datos abiertos Colombia', name: 'Información en datos abiertos Colombia', url: 'https://www.datos.gov.co/Transporte/Informacion-Registro-Nacional-de-Despachos-Carga-R/v7bz-7nq2/about_data', color: '#4285f4', size: 25 },
+    { id: 'acalConecta', name: 'acalConecta', url: 'https://acalconecta.org/', color: '#4285f4', size: 25 },
+    { id: 'coralbleachrisk', name: 'coralbleachrisk', url: 'https://coralbleachrisk.net/', color: '#4285f4', size: 25 },
+    { id: 'walrus', name: 'walrus', url: 'https://www.walrus.xyz/', color: '#4285f4', size: 25 },
+    { id: 'linkedin', name: 'linkedin', url: 'https://www.linkedin.com/in/marioggil/', color: '#4285f4', size: 25 },
+    { id: 'Facebook.', name: 'Facebook.', url: 'https://www.facebook.com/marioggil2/', color: '#4285f4', size: 25 },
+    { id: 'X para desarrollo (Profesional)', name: 'X para desarrollo (Profesional)', url: 'https://x.com/marioggil_dev', color: '#4285f4', size: 25 },
+    { id: 'X para cualquier cosa', name: 'X para cualquier cosa', url: 'https://x.com/marioggil', color: '#4285f4', size: 25 },
+];
+
+const links = [
+    { source: 'home', target: 'portafolio' },
+    { source: 'home', target: 'posts' },
+    { source: 'home', target: 'sobremi' },
+    { source: 'home', target: 'galeria' },
+    { source: 'home', target: 'contacto' },
+    { source: 'posts', target: 'RNDC-Guacari_Julio2025' },
+    { source: 'RNDC-Guacari_Julio2025', target: 'Registro nacional despacho de carga' },
+    { source: 'RNDC-Guacari_Julio2025', target: 'Información en datos abiertos Colombia' },
+    { source: 'sobremi', target: 'acalConecta' },
+    { source: 'sobremi', target: 'coralbleachrisk' },
+    { source: 'sobremi', target: 'walrus' },
+    { source: 'contacto', target: 'linkedin' },
+    { source: 'contacto', target: 'Facebook.' },
+    { source: 'contacto', target: 'X para desarrollo (Profesional)' },
+    { source: 'contacto', target: 'X para cualquier cosa' },
+];
+
+
+
+    
+        // Configuración del SVG
+        const width = 1160;
+        const height = 400;
+
+        const svg = d3.select('#network')
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        // Crear tooltip
+        const tooltip = d3.select('body')
+            .append('div')
+            .attr('class', 'tooltip');
+
+        // Configurar la simulación de fuerzas
+        const simulation = d3.forceSimulation(nodes)
+            .force('link', d3.forceLink(links).id(d => d.id).distance(30))
+            .force('link', d3.forceLink(links).id(d => d.id).strength(0.1))
+            .force('charge', d3.forceManyBody().strength(-100))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(d => d.size/2 + 20));
+
+        // Crear gradientes para efectos visuales
+        const defs = svg.append('defs');
+        
+        nodes.forEach(node => {
+            const gradient = defs.append('radialGradient')
+                .attr('id', `gradient-${node.id}`)
+                .attr('cx', '30%')
+                .attr('cy', '30%');
+            
+            gradient.append('stop')
+                .attr('offset', '0%')
+                .attr('stop-color', d3.color(node.color).brighter(1));
+            
+            gradient.append('stop')
+                .attr('offset', '100%')
+                .attr('stop-color', node.color);
+        });
+
+        // Crear las líneas de conexión
+        const link = svg.append('g')
+            .selectAll('line')
+            .data(links)
+            .enter()
+            .append('line')
+            .attr('class', 'link');
+
+        // Crear los nodos
+        const node = svg.append('g')
+            .selectAll('circle')
+            .data(nodes)
+            .enter()
+            .append('circle')
+            .attr('class', 'node')
+            .attr('r', d => d.size)
+            .attr('fill', d => `url(#gradient-${d.id})`)
+            .on('click', function(event, d) {
+                // Abrir página en nueva pestaña
+                window.open(d.url, '_blank');
+                
+                // Efecto visual al hacer clic
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr('r', d.size * 1.2)
+                    .transition()
+                    .duration(200)
+                    .attr('r', d.size);
+            })
+            .on('mouseover', function(event, d) {
+                // Mostrar tooltip
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0.9);
+                
+                tooltip.html(`
+                    <strong>${d.name}</strong><br/>
+                    🔗 ${d.url}<br/>
+                    👆 Clic para abrir
+                `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 10) + 'px');
+                
+                // Resaltar nodo
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr('r', d.size * 1.1);
+            })
+            .on('mouseout', function(event, d) {
+                // Ocultar tooltip
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                // Restaurar tamaño del nodo
+                d3.select(this)
+                    .transition()
+                    .duration(200)
+                    .attr('r', d.size);
+            })
+            .call(d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended));
+
+        // Crear etiquetas de texto
+        const text = svg.append('g')
+            .selectAll('text')
+            .data(nodes)
+            .enter()
+            .append('text')
+            .attr('class', 'node-text')
+            .attr('dy', '.35em')
+            .text(d => d.name);
+
+        // Función para actualizar posiciones
+        function ticked() {
+            link
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+
+            node
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y);
+            
+            text
+                .attr('x', d => d.x)
+                .attr('y', d => d.y);
+        }
+
+        // Funciones de arrastre
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+
+        // Iniciar la simulación
+        simulation.on('tick', ticked);
+
+        // Animación de entrada
+        node.style('opacity', 0)
+            .transition()
+            .duration(1000)
+            .delay((d, i) => i * 100)
+            .style('opacity', 1);
+
+        text.style('opacity', 0)
+            .transition()
+            .duration(1000)
+            .delay((d, i) => i * 100 + 500)
+            .style('opacity', 1);
+
+        link.style('opacity', 0)
+            .transition()
+            .duration(1000)
+            .delay(1000)
+            .style('opacity', 1);
+    </script>
+
+                </div>

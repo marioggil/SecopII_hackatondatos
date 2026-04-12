@@ -1,0 +1,80 @@
+<div style="background: var(--color-bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin: 20px; height: 400px; display: flex; flex-direction: column;">
+    <h2 style="margin-top: 0; color: var(--color-primary-dark); margin-bottom: 20px; font-size: 1.5rem; text-align: center;">Dinámica General de la Contratación en Colombia</h2>
+    <div style="flex: 1; position: relative;">
+        <canvas id="globalEvolucionChart"></canvas>
+    </div>
+</div>
+
+<script>
+    // Asegurarse de que Chart.js esté cargado
+    if (typeof Chart === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+        script.onload = renderGlobalChart;
+        document.head.appendChild(script);
+    } else {
+        renderGlobalChart();
+    }
+
+    function renderGlobalChart() {
+        const rawData = {{ chart_data|safe }};
+        const labels = rawData.map(d => d.mes);
+        const dataPlata = rawData.map(d => d.total);
+        const dataCantidad = rawData.map(d => d.cantidad);
+
+        const ctx = document.getElementById('globalEvolucionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Inversión Total (COP)',
+                        data: dataPlata,
+                        backgroundColor: 'rgba(29, 201, 106, 0.6)',
+                        borderColor: 'rgb(29, 201, 106)',
+                        borderWidth: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Cantidad de Contratos',
+                        data: dataCantidad,
+                        type: 'line',
+                        fill: false,
+                        borderColor: 'rgb(26, 35, 126)',
+                        tension: 0.2,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Inversión Total (COP)' },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + new Intl.NumberFormat('es-CO', { notation: "compact" , compactDisplay: "short" }).format(value);
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'Nº Contratos' },
+                        grid: { drawOnChartArea: false }
+                    }
+                }
+            }
+        });
+    }
+</script>

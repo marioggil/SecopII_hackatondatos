@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Detalle de Entidad - {{ entidad.nombre_entidad }}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <style>
+    body { background: var(--color-bg-main); color: var(--color-text-primary); margin: 0; padding: 0; font-family: var(--font-family); }
+    .header-panel { background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-medium) 100%); color: white; padding: 30px; box-shadow: var(--shadow-md); margin-bottom: 20px; }
+    .header-panel h1 { margin: 0 0 10px 0; font-size: 2rem; }
+    .header-panel p { margin: 0; opacity: 0.9; font-size: 1.1rem; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; padding: 0 20px; margin-bottom: 20px; }
+    .stat-card { background: var(--color-bg-card); padding: 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); border: 1px solid var(--color-border); }
+    .stat-card h3 { margin: 0 0 10px 0; color: var(--color-text-secondary); font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 1.8rem; font-weight: bold; color: var(--color-primary-medium); margin: 0; }
+    .table-container { background: var(--color-bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin: 0 20px 40px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { padding: 12px 15px; border-bottom: 2px solid var(--color-border); color: var(--color-text-secondary); font-weight: 600; }
+    td { padding: 12px 15px; border-bottom: 1px solid var(--color-border); color: var(--color-text-primary); }
+    tr:hover { background: rgba(0,0,0,0.02); }
+    a { color: var(--color-accent-turquoise); text-decoration: none; font-weight: 500; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+    <div class="header-panel">
+        <h1>{{ entidad.nombre_entidad }}</h1>
+        <p><strong>NIT:</strong> {{ entidad.nit_entidad }} &nbsp;|&nbsp; <strong>Departamento:</strong> {{ entidad.departamento }} &nbsp;|&nbsp; <strong>Sector:</strong> {{ entidad.sector }}</p>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total Contratos</h3>
+            <p class="value">{{ stats.total_contratos }}</p>
+        </div>
+        <div class="stat-card">
+            <h3>Valor Total Contratado</h3>
+            <p class="value" style="color: var(--color-success);">${{ "{:,.0f}".format(stats.valor_total).replace(',', '.') }} COP</p>
+        </div>
+        <div class="stat-card">
+            <h3>Promedio por Contrato</h3>
+            <p class="value" style="color: var(--color-warning);">${{ "{:,.0f}".format(stats.promedio).replace(',', '.') }} COP</p>
+        </div>
+    </div>
+
+    {% if chart_data != "[]" %}
+    <div style="background: var(--color-bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin: 0 20px 40px; height: 350px;">
+        <h2 style="margin-top: 0; color: var(--color-primary-dark); margin-bottom: 20px; font-size: 1.2rem;">Evolución de Contratos</h2>
+        <canvas id="evolucionChart"></canvas>
+    </div>
+    {% endif %}
+
+    <div class="table-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+            <h2 style="margin: 0; color: var(--color-primary-dark);">Contratos Adjudicados</h2>
+            
+            <form id="filtros-tabla" style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" name="search" value="{{ search }}"
+                       placeholder="Buscar ID o Referencia..."
+                       hx-get="/entidad/{{ entidad.nit_entidad }}"
+                       hx-trigger="keyup changed delay:900ms, search"
+                       hx-target="#tabla-contratos-body"
+                       hx-swap="innerHTML"
+                       style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit; min-width: 250px;">
+                
+                <select name="sort_by" 
+                        hx-get="/entidad/{{ entidad.nit_entidad }}"
+                        hx-target="#tabla-contratos-body"
+                        hx-swap="innerHTML"
+                        style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit; background: white; cursor: pointer;">
+                    <option value="fecha" {% if sort_by == 'fecha' %}selected{% endif %}>Más Recientes</option>
+                    <option value="valor" {% if sort_by == 'valor' %}selected{% endif %}>Mayor Valor</option>
+                </select>
+            </form>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID / Referencia</th>
+                    <th>Proveedor</th>
+                    <th>Valor</th>
+                    <th>Estado</th>
+                    <th>Modalidad</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-contratos-body">
+                {% include 'entidad_filas.html' %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if chart_data != "[]" %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const rawData = {{ chart_data|safe }};
+        const labels = rawData.map(d => d.mes);
+        const dataPlata = rawData.map(d => d.total);
+        const dataCantidad = rawData.map(d => d.cantidad);
+
+        const ctx = document.getElementById('evolucionChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Valor Total (COP)',
+                        data: dataPlata,
+                        backgroundColor: 'rgba(26, 35, 126, 0.7)',
+                        borderColor: 'rgb(26, 35, 126)',
+                        borderWidth: 1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Cantidad de Contratos',
+                        data: dataCantidad,
+                        type: 'line',
+                        fill: false,
+                        borderColor: 'rgb(0, 184, 148)',
+                        tension: 0.1,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Valor (COP)' },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + new Intl.NumberFormat('es-CO', { notation: "compact" , compactDisplay: "short" }).format(value);
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'Cantidad' },
+                        grid: { drawOnChartArea: false }
+                    }
+                }
+            }
+        });
+    });
+    </script>
+    {% endif %}
+</body>
+</html>

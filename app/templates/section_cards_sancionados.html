@@ -1,0 +1,16 @@
+<div style="grid-column: 1 / -1; width: 100%; text-align: center; margin-top: 40px; margin-bottom: 20px; padding: 30px 20px; background: rgba(229, 57, 53, 0.05); border-radius: var(--radius-md); border: 1px solid rgba(229, 57, 53, 0.3); box-shadow: 0 4px 15px rgba(229, 57, 53, 0.1);">
+    <h2 style="color: #b71c1c; font-size: 2rem; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; text-shadow: 1px 1px 2px rgba(255,255,255,0.8);">🚨 Proveedores Sancionados con Contratos</h2>
+    <p style="color: var(--color-text-primary); font-size: 1.1rem; max-width: 800px; margin: 0 auto; font-weight: 500;">Muestra aleatoria de contratistas que registran antecedentes, inhabilitaciones o sanciones en el sistema y al mismo tiempo poseen historial de adjudicaciones.</p>
+</div>
+
+{% for proveedor in top_sancionados %}
+<div class="card" style="padding: 10px; border-left: 4px solid #b71c1c; transition: all 0.3s ease;" onclick="window.open('/proveedor/{{ proveedor.documento }}', '_blank')" onmouseover="this.style.background='rgba(229, 57, 53, 0.05)'" onmouseout="this.style.background='var(--color-bg-card)'">
+  <div class="container">
+    <h4 style="font-size: 1.1em; margin-bottom: 8px; color: #b71c1c;"><b>{{ proveedor.nombre }}</b></h4>
+    <p style="margin: 4px 0; color: var(--color-text-primary);"><b>{{ proveedor.contratos }}</b> Contratos Adjudicados</p>
+    <p style="margin: 4px 0; color: #b71c1c; font-weight: bold; font-size: 1.1em;">
+      ${{ "{:,.0f}".format(proveedor.valor).replace(',', '.') }} COP
+    </p>
+  </div>
+</div>
+{% endfor %}
