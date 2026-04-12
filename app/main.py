@@ -1313,3 +1313,44 @@ def parsear_fecha(fecha_str):
             continue
 
     return None
+
+def guardar_sancionado(datos_normalizados):
+    """
+    Guarda un registro de sancionado/amonestado si es diferente.
+
+    Args:
+        datos_normalizados (dict): Datos ya normalizados
+
+    Returns:
+        dict: Resultado de la operación
+    """
+    resultado = {"exito": False, "accion": None, "mensaje": ""}
+
+    try:
+        documento = datos_normalizados.get("documento")
+
+        if not documento:
+            resultado["mensaje"] = "Documento no válido"
+            return resultado
+
+        # Verificar si el registro es diferente
+        if verificar_registro_diferente(documento, datos_normalizados):
+            # Insertar nuevo registro
+            db.sancionados.insert(**datos_normalizados)
+            db.commit()
+
+            resultado["exito"] = True
+            resultado["accion"] = "insertado"
+            resultado["mensaje"] = f"Sanción registrada para documento {documento}"
+        else:
+            resultado["exito"] = True
+            resultado["accion"] = "duplicado"
+            resultado["mensaje"] = (
+                f"Registro duplicado para documento {documento}, no se insertó"
+            )
+
+    except Exception as e:
+        db.rollback()
+        resultado["mensaje"] = f"Error: {str(e)}"
+
+    return resultado
