@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  fastapi:
+    build: 
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: secop_fastapi
+    ports:
+      - "5021:5021"
+    environment:
+      # Pydal requiere "postgres://..." (no postgresql://)
+      # Esto lee el DATABASE_URL de Dokploy. 
+      # Si por alguna razón en local no está seteado, fallback al postgres host
+      - DATABASE_URL=${DATABASE_URL:-postgres://usuario:password@postgres_gis_vector:5432/base_datos}
+    volumes:
+      # Mapeamos la carpeta databases del contenedor para SQLite en local/fallback si hiciera falta
+      - ./app/databases:/code/app/databases
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    networks:
+      - dokploy-network
+
+  postgres:
+    build: .
+    container_name: postgres_gis_vector
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-usuario}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-base_datos}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./archivos_permanentes:/data
+    restart: unless-stopped
+    networks:
+      - dokploy-network
+
+volumes:
+  postgres_data: null
+
+networks:
+  dokploy-network:
+    external: true
