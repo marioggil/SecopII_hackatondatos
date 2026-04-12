@@ -69,6 +69,26 @@ async def index_tot(request: Request):
     return templates.TemplateResponse("index_tot.html", context)
 
 
+@app.get("/estadisticas", response_class=HTMLResponse)
+async def estadisticas(request: Request):
+    # Contamos registros en las tablas principales
+    count_entidades = db(db.entidades.id > 0).count()
+    count_proveedores = db(db.proveedoresypersonas.id > 0).count()
+    count_sancionados = db(db.sancionados.id > 0).count()
+    count_contratos = db(db.contratos.id > 0).count()
+
+    context = {
+        "request": request,
+        "stats": {
+            "entidades": count_entidades,
+            "proveedores": count_proveedores,
+            "sancionados": count_sancionados,
+            "contratos": count_contratos,
+        },
+    }
+    return templates.TemplateResponse("estadisticas.html", context)
+
+
 @app.get("/html/header", response_class=HTMLResponse)
 async def header(request: Request):
     context = {"request": request}
@@ -93,6 +113,7 @@ async def section_cards(request: Request):
         )
     except Exception as e:
         import traceback
+
         print("ERROR in section_cards_entidades:", e)
         traceback.print_exc()
         res_ent = []
@@ -119,7 +140,7 @@ async def section_cards(request: Request):
 
 @app.get("/html/global_chart", response_class=HTMLResponse)
 async def global_chart(request: Request):
-    is_postgres = db._uri.startswith('postgres')
+    is_postgres = db._uri.startswith("postgres")
     if is_postgres:
         chart_query = """
             SELECT TO_CHAR(fecha_firma, 'YYYY-MM') as mes, count(id) as cantidad, sum(valor_contrato) as total 
@@ -158,12 +179,16 @@ async def section_cards_proveedores(request: Request):
             db.contratos.proveedor_adjudicado,
             conteo_prov,
             suma_prov,
-            groupby=[db.contratos.documento_proveedor, db.contratos.proveedor_adjudicado],
+            groupby=[
+                db.contratos.documento_proveedor,
+                db.contratos.proveedor_adjudicado,
+            ],
             orderby=~conteo_prov,
             limitby=(0, 10),
         )
     except Exception as e:
         import traceback
+
         print("ERROR in section_cards_proveedores:", e)
         traceback.print_exc()
         res_prov = []
@@ -1018,7 +1043,7 @@ async def entidad_detalle(
             "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
         }
 
-        is_postgres = db._uri.startswith('postgres')
+        is_postgres = db._uri.startswith("postgres")
         if is_postgres:
             chart_query = """
                 SELECT TO_CHAR(fecha_firma, 'YYYY-MM') as mes, count(id) as cantidad, sum(valor_contrato) as total 
@@ -1108,7 +1133,7 @@ async def proveedor_detalle(
             "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
         }
 
-        is_postgres = db._uri.startswith('postgres')
+        is_postgres = db._uri.startswith("postgres")
         if is_postgres:
             chart_query = """
                 SELECT TO_CHAR(fecha_firma, 'YYYY-MM') as mes, count(id) as cantidad, sum(valor_contrato) as total 
