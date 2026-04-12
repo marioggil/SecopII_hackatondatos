@@ -9,37 +9,15 @@ services:
     ports:
       - "5021:5021"
     environment:
-      # Pydal requiere "postgres://..." (no postgresql://)
-      # Esto lee el DATABASE_URL de Dokploy. 
-      # Si por alguna razón en local no está seteado, fallback al postgres host
+      # Pydal requiere "postgres://..." (no postgresql://). 
+      # Dokploy leerá esta variable acá si no sobreescribes DATABASE_URL en su UI.
+      # Como tú ya tienes el servicio "postgres_gis_vector", esto apuntará directo.
       - DATABASE_URL=${DATABASE_URL:-postgres://usuario:password@postgres_gis_vector:5432/base_datos}
     volumes:
-      # Mapeamos la carpeta databases del contenedor para SQLite en local/fallback si hiciera falta
-      - ./app/databases:/code/app/databases
-    restart: unless-stopped
-    depends_on:
-      - postgres
-    networks:
-      - dokploy-network
-
-  postgres:
-    build: .
-    container_name: postgres_gis_vector
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-usuario}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-base_datos}
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./archivos_permanentes:/data
+      - ./app/databases:/app/app/databases
     restart: unless-stopped
     networks:
       - dokploy-network
-
-volumes:
-  postgres_data: null
 
 networks:
   dokploy-network:
