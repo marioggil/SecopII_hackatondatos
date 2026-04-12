@@ -14,6 +14,10 @@ from databaseUpgrade import (
     normalizar_documento,
     extraer_datos_secop,
     guardar_amonestado_secop,
+    guardar_contratos,
+    guardar_entidad,
+    procesar_contrato_completo,
+    transformar_nombres_columnas,
 )
 from fastapi import FastAPI, Query, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel, field_validator, computed_field, Field as PydanticField
@@ -1248,7 +1252,6 @@ async def procesar_sanciones_background():
             )
 
     db.commit()
-    
 
     AntededentesSiri = "iaeu-rcn6"
     reloj_siri = time.time()
@@ -1275,9 +1278,80 @@ async def procesar_sanciones_background():
             )
 
     db.commit()
-    
+
     print(f"[SANCIONES] SECOP completado en {time.time() - reloj:.2f}s")
     print(f"[SANCIONES] SIRI completado en {time.time() - reloj_siri:.2f}s")
     print(
         f"[SANCIONES] TODO COMPLETADO - SECOP: {insertados} insertados, {duplicados} duplicados | SIRI: {insertados_siri} insertados, {duplicados_siri} duplicados"
+    )
+
+
+@app.get("/populate/contratos")
+async def populate_contratos(request: Request):
+    asyncio.create_task(procesar_contratos_background())
+    return {
+        "status": "iniciado",
+        "mensaje": "El procesamiento de contratos ha comenzado en background",
+    }
+
+
+async def procesar_contratos_background():
+    try:
+        claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
+    except:
+        claveApiSocrata = os.getenv("claveApiSocrata")
+
+    print(
+        f"[CONTRATOS] API Key: {claveApiSocrata[:20] if claveApiSocrata else 'None'}..."
+    )
+
+    client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
+    ContratosSecopII = "jbjy-vk9h"
+    LIMIT = 2000
+    offset = 0
+    total_procesados = 0
+    insertados = 0
+
+    print("[CONTRATOS] Iniciando sincronización de contratos...")
+
+    while True:
+        batch = client.get(ContratosSecopII, limit=LIMIT, offset=offset)
+        if not batch:
+            break
+
+        ids_lote = [item["id_contrato"] for item in batch if "id_contrato" in item]
+
+        existentes_query = db(db.contratos.id_contrato.belongs(ids_lote)).select(
+            db.contratos.id_contrato
+        )
+        existentes_ids = set(row.id_contrato for row in existentes_query)
+
+        contratos_nuevos = [
+            item for item in batch if item.get("id_contrato") not in existentes_ids
+        ]
+
+        if contratos_nuevos:
+            print(
+                f"[CONTRATOS] Lote offset {offset}: {len(contratos_nuevos)} contratos nuevos de {len(batch)}"
+            )
+            contratos_limpios = [
+                transformar_nombres_columnas(c) for c in contratos_nuevos
+            ]
+            db.contratos.bulk_insert(contratos_limpios)
+
+            for item in contratos_nuevos:
+                procesar_contrato_completo(item)
+
+            insertados += len(contratos_nuevos)
+            db.commit()
+
+        total_procesados += len(batch)
+        offset += LIMIT
+
+        print(
+            f"[CONTRATOS] Proceso: {total_procesados} registros revisados, {insertados} insertados"
+        )
+
+    print(
+        f"[CONTRATOS] COMPLETADO - Total revisados: {total_procesados}, Nuevos insertados: {insertados}"
     )
