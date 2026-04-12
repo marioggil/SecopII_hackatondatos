@@ -1269,3 +1269,24 @@ def normalizar_documento(documento):
 
     doc_limpio = str(documento).strip().replace(" ", "")
     return doc_limpio if doc_limpio else None
+
+def limpiar_valor(valor):
+    """
+    Convierte valores 'No Definido', 'No definido', etc. a None.
+    También maneja diccionarios extrayendo valores específicos.
+    """
+    if isinstance(valor, dict):
+        # Si es un diccionario, intenta extraer el valor 'url' o devuelve None
+        return valor.get("url") if "url" in valor else None
+
+    if isinstance(valor, str):
+        valores_nulos = [
+            "no definido",
+            "no válido",
+            "sin descripcion",
+            "sin descripción",
+        ]
+        if valor.strip().lower() in valores_nulos:
+            return None
+
+    return valor
