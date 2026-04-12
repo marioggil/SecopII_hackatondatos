@@ -5,7 +5,7 @@ import json
 import pandas as pd
 import time
 from models.db import db
-from databaseUpgrade import verificar_registro_diferente
+from databaseUpgrade import verificar_registro_diferente,guardar_sancionado_siri
 from fastapi import FastAPI, Query, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel, field_validator, computed_field, Field as PydanticField
 from typing import Dict, Annotated, Literal, Union, Optional, List
