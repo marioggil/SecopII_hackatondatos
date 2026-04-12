@@ -1507,11 +1507,12 @@ def extractConfig(
 
 
 if __name__ == "__main__":
-    
+    print("iniciando")
     claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
 
     # Unauthenticated client only works with public data sets.
     client = Socrata("www.datos.gov.co", claveApiSocrata)
+    print("client", client)
 
     SancionesSecopI = "4n4q-k399"
     AntededentesSiri = "iaeu-rcn6"
@@ -1532,7 +1533,7 @@ if __name__ == "__main__":
         if t % 500 == 0:
             db.commit()
     db.commit()
-
+    print("fin sanciones")
     # ==========================================
     # 2. Sincronizar Antecedentes SIRI
     # ==========================================
@@ -1543,7 +1544,7 @@ if __name__ == "__main__":
         if t % 500 == 0:
             db.commit()
     db.commit()
-
+    print("fin antecedentes")
     # ==========================================
     # 3. Sincronizar Contratos (Bulk Optimization)
     # ==========================================
@@ -1596,7 +1597,7 @@ if __name__ == "__main__":
         if total_procesados >= 5000:
             print("Límite de prueba (5000) alcanzado.")
             break
-
+    print("fin contratos")
     # ==========================================
     # 4. Sincronizar Adiciones y Ejecuciones
     # ==========================================
@@ -1616,12 +1617,12 @@ if __name__ == "__main__":
                 print(f"Adiciones guardadas: {t}")
 
     print(f"Buscando ejecuciones para {len(contractsindb)} contratos...")
-    # t = 0
-    # for contracindb in contractsindb:
-    #     for item in client.get(EjecucionesSecopII, where=f"identificadorcontrato == '{contracindb}'"):
-    #         t += 1
-    #         guardar_ejecuciones([item])
-    #         if t % 500 == 0:
-    #             print(f"Ejecuciones guardadas: {t}")
+    t = 0
+    for contracindb in contractsindb:
+        for item in client.get(EjecucionesSecopII, where=f"identificadorcontrato == '{contracindb}'"):
+            t += 1
+            guardar_ejecuciones([item])
+            if t % 500 == 0:
+                print(f"Ejecuciones guardadas: {t}")
 
     print(f"Proceso finalizado en {time.time() - reloj:.2f} segundos.")
