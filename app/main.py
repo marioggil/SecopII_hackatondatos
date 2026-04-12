@@ -1192,7 +1192,10 @@ async def proveedor_detalle(
 
 @app.get("/populed", response_class=HTMLResponse)
 async def populed(request: Request):
-    claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
+    try:
+        claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
+    except:
+        claveApiSocrata=os.getenv("claveApiSocrata")
     client = Socrata("www.datos.gov.co", claveApiSocrata)
     SancionesSecopI = "4n4q-k399"
     reloj = time.time()
