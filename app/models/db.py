@@ -15,7 +15,9 @@ DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite://contratos.db')
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgres://", 1)
 
-db = DAL(DATABASE_URL, folder='databases')
+# En producción (Postgres), bloqueamos las migraciones automáticas (DDL) para no chocar con las tablas que tú ya creaste.
+is_prod = DATABASE_URL.startswith("postgres://")
+db = DAL(DATABASE_URL, folder='databases', migrate_enabled=not is_prod)
 
 # Definición de la tabla (ejemplo simplificado, ajusta según necesites)
 db.define_table('contratos',
