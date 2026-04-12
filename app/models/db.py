@@ -8,8 +8,13 @@ try:
 except:
     os.mkdir(pwd + '/databases')
 
-# Dokploy / Manejo de entorno: Si existe DATABASE_URL usa Postgres (ej. postgres://user:pass@host/db), sino fallback a sqlite.
+# Dokploy / Manejo de entorno: Si existe DATABASE_URL usa Postgres, sino fallback a sqlite.
 DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite://contratos.db')
+
+# PyDAL es extremadamente estricto y NO acepta "postgresql://", solo acepta "postgres://"
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgres://", 1)
+
 db = DAL(DATABASE_URL, folder='databases')
 
 # Definición de la tabla (ejemplo simplificado, ajusta según necesites)
