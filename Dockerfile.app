@@ -34,7 +34,10 @@ ENV PATH="/code/.venv/bin:$PATH"
 # Copiamos el código final
 COPY app/ ./app/
 
+# Entrar al directorio app para que las rutas relativas (templates/, static/, databases/) funcionen igual que en local
+WORKDIR /code/app
+
 EXPOSE 5021
 
-# Comando por defecto para arrancar la app en modo producción
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5021", "--proxy-headers"]
+# Comando por defecto para arrancar la app en modo producción apuntando a la raíz del workdir
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5021", "--proxy-headers"]
