@@ -1275,6 +1275,9 @@ async def procesar_sanciones_background():
             )
 
     db.commit()
+    ContratosSecopII = "jbjy-vk9h"
+    AdicionesSecopII = "cb9c-h8sn"
+    EjecucionesSecopII = "mfmm-jqmq"
 
     LIMIT = 2000
     offset = 0
