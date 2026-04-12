@@ -18,7 +18,7 @@ RUN uv sync --frozen --no-install-project
 # Run stage ultra-ligero para Producción
 FROM python:3.11-slim-bookworm
 
-WORKDIR /code
+WORKDIR /app
 
 # Copiamos librerías dinámicas necesarias para Postgres (libpq5) en runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -26,16 +26,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # Copiamos el entorno virtual ya resuelto
-COPY --from=builder /app/.venv /code/.venv
+COPY --from=builder /app/.venv /app/.venv
 
 # Agregamos entorno virtual al PATH
-ENV PATH="/code/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Copiamos el código final
 COPY app/ ./app/
 
 # Entrar al directorio app para que las rutas relativas (templates/, static/, databases/) funcionen igual que en local
-WORKDIR /code/app
+WORKDIR /app/app
 
 EXPOSE 5021
 
