@@ -177,7 +177,7 @@
             <tbody>
                 {% for adicion in adiciones %}
                 <tr>
-                    <td>{{ adicion.id_adicion }}</td>
+                    <td><a href="/adicion/{{ adicion.id_adicion }}" class="contract-link">{{ adicion.id_adicion }}</a></td>
                     <td>{{ adicion.tipo_modificacion }}</td>
                     <td>{{ adicion.descripcion[:100] }}...</td>
                     <td>{{ adicion.fecha_registro }}</td>

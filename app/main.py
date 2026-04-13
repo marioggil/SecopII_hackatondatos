@@ -1212,6 +1212,22 @@ async def contrato_detalle(request: Request, id_contrato: str):
     return templates.TemplateResponse("contrato_detalle.html", context)
 
 
+@app.get("/adicion/{id_adicion}", response_class=HTMLResponse)
+async def adicion_detalle(request: Request, id_adicion: str):
+    adicion = db(db.adiciones.id_adicion == id_adicion).select().first()
+    if not adicion:
+        raise HTTPException(status_code=404, detail="Adición no encontrada")
+
+    contrato = db(db.contratos.id_contrato == adicion.id_contrato).select().first()
+
+    context = {
+        "request": request,
+        "adicion": adicion,
+        "contrato": contrato,
+    }
+    return templates.TemplateResponse("adicion_detalle.html", context)
+
+
 @app.get("/proveedor/{documento}", response_class=HTMLResponse)
 async def proveedor_detalle(
     request: Request,
