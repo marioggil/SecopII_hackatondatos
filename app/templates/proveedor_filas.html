@@ -6,7 +6,7 @@
         {% else %}
             <span style="color: var(--color-text-secondary);">Entidad Desconocida</span>
         {% endif %}
-        <br><small style="color: var(--color-text-secondary);">ID: {{ c.id_contrato }}</small>
+        <br><small style="color: var(--color-text-secondary);"><a href="/contrato/{{ c.id_contrato }}" target="_blank" style="color: var(--color-accent-turquoise);">{{ c.id_contrato }}</a></small>
     </td>
     <td style="font-weight: bold; color: var(--color-success);">${{ "{:,.0f}".format(c.valor_contrato or 0).replace(',', '.') }}</td>
     <td><span class="badge {% if c.estado_contrato == 'Terminado' %}badge-success{% else %}badge-info{% endif %}">{{ c.estado_contrato }}</span></td>

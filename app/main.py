@@ -100,11 +100,12 @@ async def index_tot(request: Request):
 
 @app.get("/estadisticas", response_class=HTMLResponse)
 async def estadisticas(request: Request):
-    # Contamos registros en las tablas principales
     count_entidades = db(db.entidades.id > 0).count()
     count_proveedores = db(db.proveedoresypersonas.id > 0).count()
     count_sancionados = db(db.sancionados.id > 0).count()
     count_contratos = db(db.contratos.id > 0).count()
+    count_adiciones = db(db.adiciones.id > 0).count()
+    count_ejecuciones = db(db.ejecuciones.id > 0).count()
 
     context = {
         "request": request,
@@ -113,6 +114,8 @@ async def estadisticas(request: Request):
             "proveedores": count_proveedores,
             "sancionados": count_sancionados,
             "contratos": count_contratos,
+            "adiciones": count_adiciones,
+            "ejecuciones": count_ejecuciones,
         },
     }
     return templates.TemplateResponse("estadisticas.html", context)
@@ -1112,6 +1115,24 @@ async def entidad_detalle(
         return templates.TemplateResponse("entidad_filas.html", context)
 
     return templates.TemplateResponse("entidad_detalle.html", context)
+
+
+@app.get("/contrato/{id_contrato}", response_class=HTMLResponse)
+async def contrato_detalle(request: Request, id_contrato: str):
+    contrato = db(db.contratos.id_contrato == id_contrato).select().first()
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+
+    adiciones = db(db.adiciones.id_contrato == id_contrato).select()
+    ejecuciones = db(db.ejecuciones.id_contrato == id_contrato).select()
+
+    context = {
+        "request": request,
+        "contrato": contrato,
+        "adiciones": adiciones,
+        "ejecuciones": ejecuciones,
+    }
+    return templates.TemplateResponse("contrato_detalle.html", context)
 
 
 @app.get("/proveedor/{documento}", response_class=HTMLResponse)
