@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Detalle de Adición - {{ adicion.id_adicion }}</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <style>
+    body { background: var(--color-bg-main); color: var(--color-text-primary); margin: 0; padding: 0; font-family: var(--font-family); }
+    .header-panel { background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%); color: white; padding: 30px; box-shadow: var(--shadow-md); margin-bottom: 20px; }
+    .header-panel h1 { margin: 0 0 10px 0; font-size: 2rem; }
+    .header-panel p { margin: 0; opacity: 0.9; font-size: 1.1rem; }
+    .info-section { background: var(--color-bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin: 0 20px 20px; }
+    .info-section h2 { margin: 0 0 15px 0; color: var(--color-primary-dark); font-size: 1.3rem; border-bottom: 2px solid var(--color-border); padding-bottom: 10px; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+    .info-item { padding: 10px; }
+    .info-item strong { color: var(--color-text-secondary); display: block; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px; }
+    .info-item span { font-size: 1rem; color: var(--color-text-primary); }
+    .back-link { display: inline-block; margin: 20px; color: var(--color-accent-turquoise); text-decoration: none; font-weight: 500; }
+    .back-link:hover { text-decoration: underline; }
+    .description-box { background: #f8f9fa; border-left: 4px solid var(--color-primary-medium); padding: 15px; border-radius: 4px; margin-top: 10px; white-space: pre-wrap; }
+    .contract-link { color: var(--color-primary-medium); text-decoration: none; font-weight: 600; }
+    .contract-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+    <a href="javascript:history.back()" class="back-link">← Volver</a>
+    
+    <div class="header-panel">
+        <h1>Adición: {{ adicion.id_adicion }}</h1>
+        <p><strong>Contrato:</strong> <a href="/contrato/{{ adicion.id_contrato }}" class="contract-link" style="color: white; text-decoration: underline;">{{ adicion.id_contrato }}</a></p>
+    </div>
+
+    <div class="info-section">
+        <h2>Detalles de la Modificación</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>Tipo de Modificación</strong>
+                <span>{{ adicion.tipo_modificacion }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Fecha de Registro</strong>
+                <span>{{ adicion.fecha_registro }}</span>
+            </div>
+            <div class="info-item" style="grid-column: 1 / -1;">
+                <strong>Descripción</strong>
+                <div class="description-box">{{ adicion.descripcion }}</div>
+            </div>
+        </div>
+    </div>
+
+    {% if contrato %}
+    <div class="info-section">
+        <h2>Información del Contrato Relacionado</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>Entidad</strong>
+                <span>{{ contrato.nombre_entidad }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Proveedor</strong>
+                <span>{{ contrato.proveedor_adjudicado }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Valor Original</strong>
+                <span>${{ "{:,.0f}".format(contrato.valor_contrato or 0).replace(',', '.') }} COP</span>
+            </div>
+            <div class="info-item">
+                <strong>Estado del Contrato</strong>
+                <span>{{ contrato.estado_contrato }}</span>
+            </div>
+        </div>
+        <div style="margin-top: 20px;">
+            <a href="/contrato/{{ contrato.id_contrato }}" class="contract-link">Ir al detalle del contrato completo →</a>
+        </div>
+    </div>
+    {% endif %}
+
+</body>
+</html>

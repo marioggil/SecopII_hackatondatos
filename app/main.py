@@ -3,24 +3,114 @@ from pydal import DAL, Field
 import os
 import json
 import pandas as pd
+from decimal import Decimal
 import time
 from models.db import db
+from databaseUpgrade import (
+    verificar_registro_diferente,
+    guardar_sancionado_siri,
+    guardar_sancionado,
+    parsear_fecha,
+    limpiar_valor,
+    normalizar_documento,
+    extraer_datos_secop,
+    guardar_amonestado_secop,
+    guardar_contratos,
+    guardar_entidad,
+    procesar_contrato_completo,
+    transformar_nombres_columnas,
+    guardar_adiciones,
+    guardar_ejecuciones,
+    transformar_nombres_columnas_adicion,
+    transformar_nombres_columnas_ejecucion,
+)
 from fastapi import FastAPI, Query, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel, field_validator, computed_field, Field as PydanticField
 from typing import Dict, Annotated, Literal, Union, Optional, List
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi import Request
 import time
 import os
+from decimal import Decimal
+import asyncio
+from datetime import datetime
+
+# --- Estado de procesos en memoria ---
+PROCESS_STATUS = {
+    "sanciones": {
+        "status": "idle",
+        "start_time": None,
+        "end_time": None,
+        "message": "",
+    },
+    "contratos": {
+        "status": "idle",
+        "start_time": None,
+        "end_time": None,
+        "message": "",
+    },
+    "adiciones_ejecuciones": {
+        "status": "idle",
+        "start_time": None,
+        "end_time": None,
+        "message": "",
+    },
+}
+
+
+def update_process_status(name, status, message=""):
+    if name in PROCESS_STATUS:
+        PROCESS_STATUS[name]["status"] = status
+        PROCESS_STATUS[name]["message"] = message
+        if status == "running":
+            PROCESS_STATUS[name]["start_time"] = datetime.now()
+            PROCESS_STATUS[name]["end_time"] = None
+        elif status == "completed" or status == "error":
+            PROCESS_STATUS[name]["end_time"] = datetime.now()
+
+
+def get_process_info(name):
+    info = PROCESS_STATUS.get(name, {})
+    status = info.get("status", "idle")
+    start_time = info.get("start_time")
+    end_time = info.get("end_time")
+
+    duration = ""
+    if start_time:
+        ref_time = end_time if end_time else datetime.now()
+        diff = ref_time - start_time
+        hours, remainder = divmod(diff.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        duration = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+    return {
+        "name": name,
+        "status": status,
+        "duration": duration,
+        "message": info.get("message", ""),
+        "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S") if start_time else None,
+    }
+
+
+# --------------------------------------
+
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
+
 from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
-import json
 import random
 import requests
 import uuid
 import numpy as np
+import asyncio
 from datetime import date, datetime
 from fastapi import FastAPI, HTTPException
 from sodapy import Socrata
@@ -69,6 +159,45 @@ async def index_tot(request: Request):
     return templates.TemplateResponse("index_tot.html", context)
 
 
+@app.get("/estadisticas", response_class=HTMLResponse)
+async def estadisticas(request: Request):
+    count_entidades = db(db.entidades.id > 0).count()
+    count_proveedores = db(db.proveedoresypersonas.id > 0).count()
+    count_sancionados = db(db.sancionados.id > 0).count()
+    count_contratos = db(db.contratos.id > 0).count()
+    count_adiciones = db(db.adiciones.id > 0).count()
+    count_ejecuciones = db(db.ejecuciones.id > 0).count()
+
+    process_info = {
+        "sanciones": get_process_info("sanciones"),
+        "contratos": get_process_info("contratos"),
+        "adiciones_ejecuciones": get_process_info("adiciones_ejecuciones"),
+    }
+
+    context = {
+        "request": request,
+        "stats": {
+            "entidades": count_entidades,
+            "proveedores": count_proveedores,
+            "sancionados": count_sancionados,
+            "contratos": count_contratos,
+            "adiciones": count_adiciones,
+            "ejecuciones": count_ejecuciones,
+        },
+        "processes": process_info,
+    }
+    return templates.TemplateResponse("estadisticas.html", context)
+
+
+@app.get("/api/process_status")
+async def api_process_status():
+    return {
+        "sanciones": get_process_info("sanciones"),
+        "contratos": get_process_info("contratos"),
+        "adiciones_ejecuciones": get_process_info("adiciones_ejecuciones"),
+    }
+
+
 @app.get("/html/header", response_class=HTMLResponse)
 async def header(request: Request):
     context = {"request": request}
@@ -81,15 +210,22 @@ async def section_cards(request: Request):
     # Top 10 Entidades con más contratos
     conteo_ent = db.contratos.nit_entidad.count()
     suma_ent = db.contratos.valor_contrato.sum()
-    res_ent = db(db.contratos.nit_entidad != None).select(
-        db.contratos.nit_entidad,
-        db.contratos.nombre_entidad,
-        conteo_ent,
-        suma_ent,
-        groupby=[db.contratos.nit_entidad, db.contratos.nombre_entidad],
-        orderby=~conteo_ent,
-        limitby=(0, 10),
-    )
+    try:
+        res_ent = db(db.contratos.nit_entidad != None).select(
+            db.contratos.nit_entidad,
+            db.contratos.nombre_entidad,
+            conteo_ent,
+            suma_ent,
+            groupby=[db.contratos.nit_entidad, db.contratos.nombre_entidad],
+            orderby=~conteo_ent,
+            limitby=(0, 10),
+        )
+    except Exception as e:
+        import traceback
+
+        print("ERROR in section_cards_entidades:", e)
+        traceback.print_exc()
+        res_ent = []
 
     top_entidades = []
     for r in res_ent:
@@ -113,17 +249,27 @@ async def section_cards(request: Request):
 
 @app.get("/html/global_chart", response_class=HTMLResponse)
 async def global_chart(request: Request):
-    chart_query = """
-        SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
-        FROM contratos 
-        WHERE fecha_firma IS NOT NULL
-        GROUP BY mes 
-        ORDER BY mes
-    """
+    is_postgres = db._uri.startswith("postgres")
+    if is_postgres:
+        chart_query = """
+            SELECT TO_CHAR(fecha_firma, 'YYYY-MM') as mes, count(id) as cantidad, sum(valor_contrato) as total 
+            FROM contratos 
+            WHERE fecha_firma IS NOT NULL
+            GROUP BY TO_CHAR(fecha_firma, 'YYYY-MM') 
+            ORDER BY mes
+        """
+    else:
+        chart_query = """
+            SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
+            FROM contratos 
+            WHERE fecha_firma IS NOT NULL
+            GROUP BY mes 
+            ORDER BY mes
+        """
     chart_data = "[]"
     try:
         chart_data_raw = db.executesql(chart_query, as_dict=True)
-        chart_data = json.dumps(chart_data_raw)
+        chart_data = json.dumps(chart_data_raw, cls=DecimalEncoder)
     except Exception as e:
         print("Error global chart:", e)
 
@@ -136,15 +282,25 @@ async def section_cards_proveedores(request: Request):
     # Top 10 Proveedores con más contratos
     conteo_prov = db.contratos.documento_proveedor.count()
     suma_prov = db.contratos.valor_contrato.sum()
-    res_prov = db(db.contratos.documento_proveedor != None).select(
-        db.contratos.documento_proveedor,
-        db.contratos.proveedor_adjudicado,
-        conteo_prov,
-        suma_prov,
-        groupby=[db.contratos.documento_proveedor, db.contratos.proveedor_adjudicado],
-        orderby=~conteo_prov,
-        limitby=(0, 10),
-    )
+    try:
+        res_prov = db(db.contratos.documento_proveedor != None).select(
+            db.contratos.documento_proveedor,
+            db.contratos.proveedor_adjudicado,
+            conteo_prov,
+            suma_prov,
+            groupby=[
+                db.contratos.documento_proveedor,
+                db.contratos.proveedor_adjudicado,
+            ],
+            orderby=~conteo_prov,
+            limitby=(0, 10),
+        )
+    except Exception as e:
+        import traceback
+
+        print("ERROR in section_cards_proveedores:", e)
+        traceback.print_exc()
+        res_prov = []
 
     top_proveedores = []
     for r in res_prov:
@@ -996,18 +1152,28 @@ async def entidad_detalle(
             "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
         }
 
-        chart_query = """
-            SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
-            FROM contratos 
-            WHERE nit_entidad = ? AND fecha_firma IS NOT NULL
-            GROUP BY mes 
-            ORDER BY mes
-        """
+        is_postgres = db._uri.startswith("postgres")
+        if is_postgres:
+            chart_query = """
+                SELECT TO_CHAR(fecha_firma, 'YYYY-MM') as mes, count(id) as cantidad, sum(valor_contrato) as total 
+                FROM contratos 
+                WHERE nit_entidad = %s AND fecha_firma IS NOT NULL
+                GROUP BY TO_CHAR(fecha_firma, 'YYYY-MM') 
+                ORDER BY mes
+            """
+        else:
+            chart_query = """
+                SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
+                FROM contratos 
+                WHERE nit_entidad = ? AND fecha_firma IS NOT NULL
+                GROUP BY mes 
+                ORDER BY mes
+            """
         try:
             chart_data_raw = db.executesql(
                 chart_query, placeholders=[nit], as_dict=True
             )
-            chart_data = json.dumps(chart_data_raw)
+            chart_data = json.dumps(chart_data_raw, cls=DecimalEncoder)
         except Exception as e:
             print("Error chart:", e)
 
@@ -1026,6 +1192,40 @@ async def entidad_detalle(
         return templates.TemplateResponse("entidad_filas.html", context)
 
     return templates.TemplateResponse("entidad_detalle.html", context)
+
+
+@app.get("/contrato/{id_contrato}", response_class=HTMLResponse)
+async def contrato_detalle(request: Request, id_contrato: str):
+    contrato = db(db.contratos.id_contrato == id_contrato).select().first()
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+
+    adiciones = db(db.adiciones.id_contrato == id_contrato).select()
+    ejecuciones = db(db.ejecuciones.id_contrato == id_contrato).select()
+
+    context = {
+        "request": request,
+        "contrato": contrato,
+        "adiciones": adiciones,
+        "ejecuciones": ejecuciones,
+    }
+    return templates.TemplateResponse("contrato_detalle.html", context)
+
+
+@app.get("/adicion/{id_adicion}", response_class=HTMLResponse)
+async def adicion_detalle(request: Request, id_adicion: str):
+    adicion = db(db.adiciones.id_adicion == id_adicion).select().first()
+    if not adicion:
+        raise HTTPException(status_code=404, detail="Adición no encontrada")
+
+    contrato = db(db.contratos.id_contrato == adicion.id_contrato).select().first()
+
+    context = {
+        "request": request,
+        "adicion": adicion,
+        "contrato": contrato,
+    }
+    return templates.TemplateResponse("adicion_detalle.html", context)
 
 
 @app.get("/proveedor/{documento}", response_class=HTMLResponse)
@@ -1076,18 +1276,28 @@ async def proveedor_detalle(
             "promedio": float(stats_query[suma] or 0) / (stats_query[conteo] or 1),
         }
 
-        chart_query = """
-            SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
-            FROM contratos 
-            WHERE documento_proveedor = ? AND fecha_firma IS NOT NULL
-            GROUP BY mes 
-            ORDER BY mes
-        """
+        is_postgres = db._uri.startswith("postgres")
+        if is_postgres:
+            chart_query = """
+                SELECT TO_CHAR(fecha_firma, 'YYYY-MM') as mes, count(id) as cantidad, sum(valor_contrato) as total 
+                FROM contratos 
+                WHERE documento_proveedor = %s AND fecha_firma IS NOT NULL
+                GROUP BY TO_CHAR(fecha_firma, 'YYYY-MM') 
+                ORDER BY mes
+            """
+        else:
+            chart_query = """
+                SELECT strftime('%Y-%m', fecha_firma) as mes, count(id) as cantidad, sum(valor_contrato) as total 
+                FROM contratos 
+                WHERE documento_proveedor = ? AND fecha_firma IS NOT NULL
+                GROUP BY mes 
+                ORDER BY mes
+            """
         try:
             chart_data_raw = db.executesql(
                 chart_query, placeholders=[documento], as_dict=True
             )
-            chart_data = json.dumps(chart_data_raw)
+            chart_data = json.dumps(chart_data_raw, cls=DecimalEncoder)
         except Exception as e:
             print("Error chart:", e)
 
@@ -1122,3 +1332,275 @@ async def proveedor_detalle(
         return templates.TemplateResponse("proveedor_filas.html", context)
 
     return templates.TemplateResponse("proveedor_detalle.html", context)
+
+
+@app.get("/populed")
+async def populed(request: Request):
+    if PROCESS_STATUS["sanciones"]["status"] == "running":
+        return {
+            "status": "already_running",
+            "mensaje": "El procesamiento de sanciones ya está en curso",
+        }
+    asyncio.create_task(procesar_sanciones_background())
+    return {
+        "status": "iniciado",
+        "mensaje": "El procesamiento de sanciones ha comenzado en background",
+    }
+
+
+async def procesar_sanciones_background():
+    update_process_status("sanciones", "running", "Iniciando descarga de sanciones...")
+    try:
+        try:
+            claveApiSocrata = extractConfig(
+                nameModel="SocratesApi", dataOut="claveAppApi"
+            )
+        except:
+            claveApiSocrata = os.getenv("claveApiSocrata")
+
+        client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
+        SancionesSecopI = "4n4q-k399"
+        reloj = time.time()
+        t = 0
+        insertados = 0
+        duplicados = 0
+        errores = 0
+
+        for item in client.get_all(SancionesSecopI):
+            resultado = guardar_amonestado_secop(item)
+            if resultado:
+                if resultado.get("exito"):
+                    if resultado.get("accion") == "insertado":
+                        insertados += 1
+                    elif resultado.get("accion") == "duplicado":
+                        duplicados += 1
+                else:
+                    errores += 1
+            t += 1
+            if t % 500 == 0:
+                db.commit()
+                update_process_status(
+                    "sanciones",
+                    "running",
+                    f"SECOP: {t} procesados, {insertados} nuevos",
+                )
+
+        db.commit()
+
+        AntededentesSiri = "iaeu-rcn6"
+        t_siri = 0
+        insertados_siri = 0
+        duplicados_siri = 0
+        errores_siri = 0
+
+        for item in client.get_all(AntededentesSiri):
+            resultado_siri = guardar_sancionado_siri(item)
+            if resultado_siri:
+                if resultado_siri.get("exito"):
+                    if resultado_siri.get("accion") == "insertado":
+                        insertados_siri += 1
+                    elif resultado_siri.get("accion") == "duplicado":
+                        duplicados_siri += 1
+                else:
+                    errores_siri += 1
+            t_siri += 1
+            if t_siri % 500 == 0:
+                db.commit()
+                update_process_status(
+                    "sanciones",
+                    "running",
+                    f"SIRI: {t_siri} procesados, {insertados_siri} nuevos",
+                )
+
+        db.commit()
+        update_process_status(
+            "sanciones",
+            "completed",
+            f"Finalizado. SECOP: {insertados} nuevos, SIRI: {insertados_siri} nuevos",
+        )
+    except Exception as e:
+        update_process_status("sanciones", "error", f"Error: {str(e)}")
+
+
+@app.get("/populate/contratos")
+async def populate_contratos(request: Request):
+    if PROCESS_STATUS["contratos"]["status"] == "running":
+        return {
+            "status": "already_running",
+            "mensaje": "El procesamiento de contratos ya está en curso",
+        }
+    asyncio.create_task(procesar_contratos_background())
+    return {
+        "status": "iniciado",
+        "mensaje": "El procesamiento de contratos ha comenzado en background",
+    }
+
+
+async def procesar_contratos_background():
+    update_process_status(
+        "contratos", "running", "Iniciando sincronización de contratos..."
+    )
+    try:
+        try:
+            claveApiSocrata = extractConfig(
+                nameModel="SocratesApi", dataOut="claveAppApi"
+            )
+        except:
+            claveApiSocrata = os.getenv("claveApiSocrata")
+
+        client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
+        ContratosSecopII = "jbjy-vk9h"
+        LIMIT = 2000
+        offset = 0
+        total_procesados = 0
+        insertados = 0
+
+        while True:
+            batch = client.get(ContratosSecopII, limit=LIMIT, offset=offset)
+            if not batch:
+                break
+
+            ids_lote = [item["id_contrato"] for item in batch if "id_contrato" in item]
+
+            existentes_query = db(db.contratos.id_contrato.belongs(ids_lote)).select(
+                db.contratos.id_contrato
+            )
+            existentes_ids = set(row.id_contrato for row in existentes_query)
+
+            contratos_nuevos = [
+                item for item in batch if item.get("id_contrato") not in existentes_ids
+            ]
+
+            if contratos_nuevos:
+                contratos_limpios = [
+                    transformar_nombres_columnas(c) for c in contratos_nuevos
+                ]
+                db.contratos.bulk_insert(contratos_limpios)
+
+                for item in contratos_nuevos:
+                    procesar_contrato_completo(item)
+
+                insertados += len(contratos_nuevos)
+                db.commit()
+
+            total_procesados += len(batch)
+            offset += LIMIT
+            update_process_status(
+                "contratos",
+                "running",
+                f"Revisados: {total_procesados}, Nuevos: {insertados}",
+            )
+
+        update_process_status(
+            "contratos", "completed", f"Finalizado. Nuevos: {insertados}"
+        )
+    except Exception as e:
+        update_process_status("contratos", "error", f"Error: {str(e)}")
+
+
+@app.get("/populate/adiciones-ejecuciones")
+async def populate_adiciones_ejecuciones(request: Request):
+    if PROCESS_STATUS["adiciones_ejecuciones"]["status"] == "running":
+        return {
+            "status": "already_running",
+            "mensaje": "El procesamiento de adiciones y ejecuciones ya está en curso",
+        }
+    asyncio.create_task(procesar_adiciones_ejecuciones_background())
+    return {
+        "status": "iniciado",
+        "mensaje": "El procesamiento de adiciones y ejecuciones ha comenzado en background",
+    }
+
+
+async def procesar_adiciones_ejecuciones_background():
+    update_process_status(
+        "adiciones_ejecuciones", "running", "Buscando contratos en DB..."
+    )
+    try:
+        try:
+            claveApiSocrata = extractConfig(
+                nameModel="SocratesApi", dataOut="claveAppApi"
+            )
+        except:
+            claveApiSocrata = os.getenv("claveApiSocrata")
+
+        client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
+        AdicionesSecopII = "cb9c-h8sn"
+        EjecucionesSecopII = "mfmm-jqmq"
+
+        contratosindb = db(db.contratos).select(db.contratos.id_contrato, distinct=True)
+        contractsindb = [c.id_contrato for c in contratosindb]
+
+        total_contratos = len(contractsindb)
+        update_process_status(
+            "adiciones_ejecuciones",
+            "running",
+            f"Procesando adiciones para {total_contratos} contratos...",
+        )
+
+        t_adiciones = 0
+        insertados_adiciones = 0
+
+        for i, contracindb in enumerate(contractsindb):
+            try:
+                for item in client.get(
+                    AdicionesSecopII, where=f"id_contrato == '{contracindb}'"
+                ):
+                    item_limpio = transformar_nombres_columnas_adicion(item)
+                    result = guardar_adiciones(
+                        [item_limpio], actualizar_existentes=True
+                    )
+                    if result.get("insertados", 0) > 0:
+                        insertados_adiciones += 1
+                    t_adiciones += 1
+
+                if (i + 1) % 50 == 0:
+                    db.commit()
+                    update_process_status(
+                        "adiciones_ejecuciones",
+                        "running",
+                        f"Adiciones: {i + 1}/{total_contratos} contratos",
+                    )
+            except Exception as e:
+                continue
+
+        db.commit()
+
+        update_process_status(
+            "adiciones_ejecuciones",
+            "running",
+            f"Procesando ejecuciones para {total_contratos} contratos...",
+        )
+        t_ejecuciones = 0
+        insertados_ejecuciones = 0
+
+        for i, contracindb in enumerate(contractsindb):
+            try:
+                for item in client.get(
+                    EjecucionesSecopII,
+                    where=f"identificadorcontrato == '{contracindb}'",
+                ):
+                    item_limpio = transformar_nombres_columnas_ejecucion(item)
+                    result = guardar_ejecuciones([item_limpio])
+                    if result.get("insertados", 0) > 0:
+                        insertados_ejecuciones += 1
+                    t_ejecuciones += 1
+
+                if (i + 1) % 50 == 0:
+                    db.commit()
+                    update_process_status(
+                        "adiciones_ejecuciones",
+                        "running",
+                        f"Ejecuciones: {i + 1}/{total_contratos} contratos",
+                    )
+            except Exception as e:
+                continue
+
+        db.commit()
+        update_process_status(
+            "adiciones_ejecuciones",
+            "completed",
+            f"Finalizado. Adiciones: {insertados_adiciones}, Ejecuciones: {insertados_ejecuciones}",
+        )
+    except Exception as e:
+        update_process_status("adiciones_ejecuciones", "error", f"Error: {str(e)}")

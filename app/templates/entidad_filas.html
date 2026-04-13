@@ -1,6 +1,6 @@
 {% for c in contratos %}
 <tr>
-    <td style="font-size: 0.9em; max-width: 200px; word-wrap: break-word;">{{ c.id_contrato }}<br><small style="color: var(--color-text-secondary);">{{ c.referencia_contrato }}</small></td>
+    <td style="font-size: 0.9em; max-width: 200px; word-wrap: break-word;"><a href="/contrato/{{ c.id_contrato }}" target="_blank" style="color: var(--color-accent-turquoise); font-weight: 600;">{{ c.id_contrato }}</a><br><small style="color: var(--color-text-secondary);">{{ c.referencia_contrato }}</small></td>
     <td>
         {% if c.documento_proveedor %}
             <a href="/proveedor/{{ c.documento_proveedor }}" target="_blank">{{ c.proveedor_adjudicado }}</a>

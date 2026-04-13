@@ -13,6 +13,7 @@ services:
       # Dokploy leerá esta variable acá si no sobreescribes DATABASE_URL en su UI.
       # Como tú ya tienes el servicio "postgres_gis_vector", esto apuntará directo.
       - DATABASE_URL=${DATABASE_URL:-postgres://usuario:password@postgres_gis_vector:5432/base_datos}
+      - claveApiSocrata=${claveApiSocrata}
     volumes:
       - ./app/databases:/app/app/databases
     restart: unless-stopped

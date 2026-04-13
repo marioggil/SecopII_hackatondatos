@@ -6,6 +6,7 @@ import pandas as pd
 from sodapy import Socrata
 import time
 from models.db import db
+
 # Configuración de la base de datos
 pwd = os.path.dirname("private/experiment_config.json")
 
@@ -120,6 +121,40 @@ def limpiar_valor(valor):
     return valor
 
 
+MAX_DECIMAL_15_2 = 10**13 - 1  # 9,999,999,999,999.99
+
+
+def limpiar_valor_numerico(valor, maximo=MAX_DECIMAL_15_2):
+    """Limpia valores numéricos, convirtiendo strings y recortando si excede el máximo."""
+    if valor is None:
+        return None
+
+    if isinstance(valor, (int, float)):
+        if abs(valor) > maximo:
+            return maximo if valor > 0 else -maximo
+        return valor
+
+    if isinstance(valor, str):
+        valor = valor.strip()
+        valores_nulos = [
+            "no definido",
+            "no válido",
+            "sin descripcion",
+            "sin descripción",
+        ]
+        if valor.lower() in valores_nulos:
+            return None
+        try:
+            num = float(valor.replace(",", "").replace("$", "").strip())
+            if abs(num) > maximo:
+                return maximo if num > 0 else -maximo
+            return num
+        except (ValueError, AttributeError):
+            return None
+
+    return valor
+
+
 def transformar_nombres_columnas(registro, mapeo=None):
     """
     Transforma los nombres de las columnas según el mapeo proporcionado.
@@ -137,10 +172,34 @@ def transformar_nombres_columnas(registro, mapeo=None):
 
     registro_transformado = {}
 
+    # Campos numéricos que necesitan 处理 especiales
+    campos_numericos = {
+        "valor_contrato",
+        "valor_pago_adelantado",
+        "valor_facturado",
+        "valor_pendiente_pago",
+        "valor_pagado",
+        "valor_amortizado",
+        "valor_pendiente_amortizacion",
+        "valor_pendiente_ejecucion",
+        "saldo_cdp",
+        "saldo_vigencia",
+        "presupuesto_pgn",
+        "sistema_participaciones",
+        "sistema_regalias",
+        "recursos_propios_alcaldias",
+        "recursos_credito",
+        "recursos_propios",
+        "dias_adicionados",
+    }
+
     for key_original, valor in registro.items():
-        # Usa el nombre mapeado o el original si no existe en el mapeo
         key_nuevo = mapeo.get(key_original, key_original)
-        registro_transformado[key_nuevo] = limpiar_valor(valor)
+
+        if key_nuevo in campos_numericos:
+            registro_transformado[key_nuevo] = limpiar_valor_numerico(valor)
+        else:
+            registro_transformado[key_nuevo] = limpiar_valor(valor)
 
     return registro_transformado
 
@@ -1507,11 +1566,12 @@ def extractConfig(
 
 
 if __name__ == "__main__":
-    
+    print("iniciando")
     claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
 
     # Unauthenticated client only works with public data sets.
     client = Socrata("www.datos.gov.co", claveApiSocrata)
+    print("client", client)
 
     SancionesSecopI = "4n4q-k399"
     AntededentesSiri = "iaeu-rcn6"
@@ -1525,25 +1585,25 @@ if __name__ == "__main__":
     # ==========================================
     # 1. Sincronizar Sanciones SECOP I
     # ==========================================
-    # t = 0
-    # for item in client.get_all(SancionesSecopI):
-    #     guardar_amonestado_secop(item)
-    #     t += 1
-    #     if t % 500 == 0:
-    #         db.commit()
-    # db.commit()
-
+    t = 0
+    for item in client.get_all(SancionesSecopI):
+        guardar_amonestado_secop(item)
+        t += 1
+        if t % 500 == 0:
+            db.commit()
+    db.commit()
+    print("fin sanciones")
     # ==========================================
     # 2. Sincronizar Antecedentes SIRI
     # ==========================================
-    # t = 0
-    # for item in client.get_all(AntededentesSiri):
-    #     guardar_sancionado_siri(item)
-    #     t += 1
-    #     if t % 500 == 0:
-    #         db.commit()
-    # db.commit()
-
+    t = 0
+    for item in client.get_all(AntededentesSiri):
+        guardar_sancionado_siri(item)
+        t += 1
+        if t % 500 == 0:
+            db.commit()
+    db.commit()
+    print("fin antecedentes")
     # ==========================================
     # 3. Sincronizar Contratos (Bulk Optimization)
     # ==========================================
@@ -1596,7 +1656,7 @@ if __name__ == "__main__":
         if total_procesados >= 5000:
             print("Límite de prueba (5000) alcanzado.")
             break
-
+    print("fin contratos")
     # ==========================================
     # 4. Sincronizar Adiciones y Ejecuciones
     # ==========================================
@@ -1607,21 +1667,25 @@ if __name__ == "__main__":
     print(f"Buscando adiciones para {len(contractsindb)} contratos...")
     # Podríamos optimizarlo armando queries con IN (...) en lugar de hacer 1 query por contrato
     # pero para mantenerlo simple y funcional por ahora:
-    # t = 0
-    # for contracindb in contractsindb:
-    #     for item in client.get(AdicionesSecopII, where=f"id_contrato == '{contracindb}'"):
-    #         t += 1
-    #         guardar_adiciones([item], actualizar_existentes=True)
-    #         if t % 500 == 0:
-    #             print(f"Adiciones guardadas: {t}")
+    t = 0
+    for contracindb in contractsindb:
+        for item in client.get(
+            AdicionesSecopII, where=f"id_contrato == '{contracindb}'"
+        ):
+            t += 1
+            guardar_adiciones([item], actualizar_existentes=True)
+            if t % 500 == 0:
+                print(f"Adiciones guardadas: {t}")
 
     print(f"Buscando ejecuciones para {len(contractsindb)} contratos...")
-    # t = 0
-    # for contracindb in contractsindb:
-    #     for item in client.get(EjecucionesSecopII, where=f"identificadorcontrato == '{contracindb}'"):
-    #         t += 1
-    #         guardar_ejecuciones([item])
-    #         if t % 500 == 0:
-    #             print(f"Ejecuciones guardadas: {t}")
+    t = 0
+    for contracindb in contractsindb:
+        for item in client.get(
+            EjecucionesSecopII, where=f"identificadorcontrato == '{contracindb}'"
+        ):
+            t += 1
+            guardar_ejecuciones([item])
+            if t % 500 == 0:
+                print(f"Ejecuciones guardadas: {t}")
 
     print(f"Proceso finalizado en {time.time() - reloj:.2f} segundos.")

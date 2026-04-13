@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Detalle de Contrato - {{ contrato.id_contrato }}</title>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <link rel="stylesheet" href="/static/css/main.css">
+  <style>
+    body { background: var(--color-bg-main); color: var(--color-text-primary); margin: 0; padding: 0; font-family: var(--font-family); }
+    .header-panel { background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary-medium) 100%); color: white; padding: 30px; box-shadow: var(--shadow-md); margin-bottom: 20px; }
+    .header-panel h1 { margin: 0 0 10px 0; font-size: 2rem; }
+    .header-panel p { margin: 0; opacity: 0.9; font-size: 1.1rem; }
+    .info-section { background: var(--color-bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin: 0 20px 20px; }
+    .info-section h2 { margin: 0 0 15px 0; color: var(--color-primary-dark); font-size: 1.3rem; border-bottom: 2px solid var(--color-border); padding-bottom: 10px; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+    .info-item { padding: 10px; }
+    .info-item strong { color: var(--color-text-secondary); display: block; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px; }
+    .info-item span { font-size: 1rem; color: var(--color-text-primary); }
+    .table-container { background: var(--color-bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); padding: 20px; margin: 0 20px 40px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { padding: 12px 15px; border-bottom: 2px solid var(--color-border); color: var(--color-text-secondary); font-weight: 600; }
+    td { padding: 12px 15px; border-bottom: 1px solid var(--color-border); color: var(--color-text-primary); }
+    tr:hover { background: rgba(0,0,0,0.02); }
+    .valor { color: var(--color-success); font-weight: 600; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: 500; }
+    .badge-activo { background: #d4edda; color: #155724; }
+    .badge-otro { background: #e2e3e5; color: #383d41; }
+    .back-link { display: inline-block; margin: 20px; color: var(--color-accent-turquoise); text-decoration: none; font-weight: 500; }
+    .back-link:hover { text-decoration: underline; }
+    .contract-link { color: var(--color-primary-medium); text-decoration: none; font-weight: 600; }
+    .contract-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+    <a href="javascript:history.back()" class="back-link">← Volver</a>
+    
+    <div class="header-panel">
+        <h1>{{ contrato.id_contrato }}</h1>
+        <p><strong>Objeto:</strong> {{ contrato.objeto_contrato[:150] }}...</p>
+    </div>
+
+    <div class="info-section">
+        <h2>Información General</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>Estado</strong>
+                <span class="badge {% if 'ejecuci' in (contrato.estado_contrato or '')|lower %}badge-activo{% else %}badge-otro{% endif %}">{{ contrato.estado_contrato }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Tipo de Contrato</strong>
+                <span>{{ contrato.tipo_contrato }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Modalidad de Contratación</strong>
+                <span>{{ contrato.modalidad_contratacion }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Valor del Contrato</strong>
+                <span class="valor">${{ "{:,.0f}".format(contrato.valor_contrato or 0).replace(',', '.') }} COP</span>
+            </div>
+            <div class="info-item">
+                <strong>Fecha de Firma</strong>
+                <span>{{ contrato.fecha_firma }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Fecha de Inicio</strong>
+                <span>{{ contrato.fecha_inicio }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Fecha de Fin</strong>
+                <span>{{ contrato.fecha_fin }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Duración</strong>
+                <span>{{ contrato.duracion_contrato }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h2>Entidad</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>Nombre</strong>
+                <span>{{ contrato.nombre_entidad }}</span>
+            </div>
+            <div class="info-item">
+                <strong>NIT</strong>
+                <span>{{ contrato.nit_entidad }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Departamento</strong>
+                <span>{{ contrato.departamento }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Ciudad</strong>
+                <span>{{ contrato.ciudad }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Sector</strong>
+                <span>{{ contrato.sector }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Rama</strong>
+                <span>{{ contrato.rama }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h2>Proveedor</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>Nombre</strong>
+                <span>{{ contrato.proveedor_adjudicado }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Documento</strong>
+                <span>{{ contrato.documento_proveedor }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Tipo de Documento</strong>
+                <span>{{ contrato.tipo_doc_proveedor }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Es PyME</strong>
+                <span>{{ contrato.es_pyme }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Es Grupo</strong>
+                <span>{{ contrato.es_grupo }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h2>Información Adicional</h2>
+        <div class="info-grid">
+            <div class="info-item">
+                <strong>Proceso de Compra</strong>
+                <span>{{ contrato.proceso_compra }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Referencia</strong>
+                <span>{{ contrato.referencia_contrato }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Orden</strong>
+                <span>{{ contrato.orden }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Origen de Recursos</strong>
+                <span>{{ contrato.origen_recursos }}</span>
+            </div>
+            <div class="info-item">
+                <strong>Destino del Gasto</strong>
+                <span>{{ contrato.destino_gasto }}</span>
+            </div>
+            <div class="info-item">
+                <strong>URL del Proceso</strong>
+                <span>{% if contrato.url_proceso %}<a href="{{ contrato.url_proceso }}" target="_blank">Ver proceso</a>{% else %}No disponible{% endif %}</span>
+            </div>
+        </div>
+    </div>
+
+    {% if adiciones %}
+    <div class="table-container">
+        <h2 style="margin: 0 0 15px 0; color: var(--color-primary-dark);">Adiciones ({{ adiciones|length }})</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID Adición</th>
+                    <th>Tipo de Modificación</th>
+                    <th>Descripción</th>
+                    <th>Fecha de Registro</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for adicion in adiciones %}
+                <tr>
+                    <td><a href="/adicion/{{ adicion.id_adicion }}" class="contract-link">{{ adicion.id_adicion }}</a></td>
+                    <td>{{ adicion.tipo_modificacion }}</td>
+                    <td>{{ adicion.descripcion[:100] }}...</td>
+                    <td>{{ adicion.fecha_registro }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if ejecuciones %}
+    <div class="table-container">
+        <h2 style="margin: 0 0 15px 0; color: var(--color-primary-dark);">Ejecuciones ({{ ejecuciones|length }})</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tipo de Ejecución</th>
+                    <th>Nombre del Plan</th>
+                    <th>Fecha de Entrega Esperada</th>
+                    <th>Fecha de Entrega Real</th>
+                    <th>Avance Esperado</th>
+                    <th>Avance Real</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ejecucion in ejecuciones %}
+                <tr>
+                    <td>{{ ejecucion.tipo_ejecucion }}</td>
+                    <td>{{ ejecucion.nombre_plan }}</td>
+                    <td>{{ ejecucion.fecha_entrega_esperada }}</td>
+                    <td>{{ ejecucion.fecha_entrega_real }}</td>
+                    <td>{{ ejecucion.porcentaje_avance_esperado }}%</td>
+                    <td>{{ ejecucion.porcentaje_avance_real }}%</td>
+                    <td>{{ ejecucion.estado_contrato }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+</body>
+</html>
