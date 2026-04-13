@@ -27,13 +27,74 @@ from databaseUpgrade import (
 from fastapi import FastAPI, Query, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel, field_validator, computed_field, Field as PydanticField
 from typing import Dict, Annotated, Literal, Union, Optional, List
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi import Request
 import time
 import os
 from decimal import Decimal
+import asyncio
+from datetime import datetime
+
+# --- Estado de procesos en memoria ---
+PROCESS_STATUS = {
+    "sanciones": {
+        "status": "idle",
+        "start_time": None,
+        "end_time": None,
+        "message": "",
+    },
+    "contratos": {
+        "status": "idle",
+        "start_time": None,
+        "end_time": None,
+        "message": "",
+    },
+    "adiciones_ejecuciones": {
+        "status": "idle",
+        "start_time": None,
+        "end_time": None,
+        "message": "",
+    },
+}
+
+
+def update_process_status(name, status, message=""):
+    if name in PROCESS_STATUS:
+        PROCESS_STATUS[name]["status"] = status
+        PROCESS_STATUS[name]["message"] = message
+        if status == "running":
+            PROCESS_STATUS[name]["start_time"] = datetime.now()
+            PROCESS_STATUS[name]["end_time"] = None
+        elif status == "completed" or status == "error":
+            PROCESS_STATUS[name]["end_time"] = datetime.now()
+
+
+def get_process_info(name):
+    info = PROCESS_STATUS.get(name, {})
+    status = info.get("status", "idle")
+    start_time = info.get("start_time")
+    end_time = info.get("end_time")
+
+    duration = ""
+    if start_time:
+        ref_time = end_time if end_time else datetime.now()
+        diff = ref_time - start_time
+        hours, remainder = divmod(diff.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        duration = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+    return {
+        "name": name,
+        "status": status,
+        "duration": duration,
+        "message": info.get("message", ""),
+        "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S") if start_time else None,
+    }
+
+
+# --------------------------------------
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -107,6 +168,12 @@ async def estadisticas(request: Request):
     count_adiciones = db(db.adiciones.id > 0).count()
     count_ejecuciones = db(db.ejecuciones.id > 0).count()
 
+    process_info = {
+        "sanciones": get_process_info("sanciones"),
+        "contratos": get_process_info("contratos"),
+        "adiciones_ejecuciones": get_process_info("adiciones_ejecuciones"),
+    }
+
     context = {
         "request": request,
         "stats": {
@@ -117,8 +184,18 @@ async def estadisticas(request: Request):
             "adiciones": count_adiciones,
             "ejecuciones": count_ejecuciones,
         },
+        "processes": process_info,
     }
     return templates.TemplateResponse("estadisticas.html", context)
+
+
+@app.get("/api/process_status")
+async def api_process_status():
+    return {
+        "sanciones": get_process_info("sanciones"),
+        "contratos": get_process_info("contratos"),
+        "adiciones_ejecuciones": get_process_info("adiciones_ejecuciones"),
+    }
 
 
 @app.get("/html/header", response_class=HTMLResponse)
@@ -1243,6 +1320,11 @@ async def proveedor_detalle(
 
 @app.get("/populed")
 async def populed(request: Request):
+    if PROCESS_STATUS["sanciones"]["status"] == "running":
+        return {
+            "status": "already_running",
+            "mensaje": "El procesamiento de sanciones ya está en curso",
+        }
     asyncio.create_task(procesar_sanciones_background())
     return {
         "status": "iniciado",
@@ -1251,78 +1333,86 @@ async def populed(request: Request):
 
 
 async def procesar_sanciones_background():
+    update_process_status("sanciones", "running", "Iniciando descarga de sanciones...")
     try:
-        claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
-    except:
-        claveApiSocrata = os.getenv("claveApiSocrata")
-
-    print(
-        f"[SANCIONES] API Key: {claveApiSocrata[:20] if claveApiSocrata else 'None'}..."
-    )
-
-    client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
-    SancionesSecopI = "4n4q-k399"
-    reloj = time.time()
-    t = 0
-    insertados = 0
-    duplicados = 0
-    errores = 0
-
-    for item in client.get_all(SancionesSecopI):
-        resultado = guardar_amonestado_secop(item)
-        if resultado:
-            if resultado.get("exito"):
-                if resultado.get("accion") == "insertado":
-                    insertados += 1
-                elif resultado.get("accion") == "duplicado":
-                    duplicados += 1
-            else:
-                errores += 1
-                print(f"[SANCIONES] Error: {resultado.get('mensaje')}")
-        t += 1
-        if t % 500 == 0:
-            db.commit()
-            print(
-                f"[SANCIONES] SECOP - Procesados: {t}, Insertados: {insertados}, Duplicados: {duplicados}, Errores: {errores}"
+        try:
+            claveApiSocrata = extractConfig(
+                nameModel="SocratesApi", dataOut="claveAppApi"
             )
+        except:
+            claveApiSocrata = os.getenv("claveApiSocrata")
 
-    db.commit()
+        client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
+        SancionesSecopI = "4n4q-k399"
+        reloj = time.time()
+        t = 0
+        insertados = 0
+        duplicados = 0
+        errores = 0
 
-    AntededentesSiri = "iaeu-rcn6"
-    reloj_siri = time.time()
-    t_siri = 0
-    insertados_siri = 0
-    duplicados_siri = 0
-    errores_siri = 0
+        for item in client.get_all(SancionesSecopI):
+            resultado = guardar_amonestado_secop(item)
+            if resultado:
+                if resultado.get("exito"):
+                    if resultado.get("accion") == "insertado":
+                        insertados += 1
+                    elif resultado.get("accion") == "duplicado":
+                        duplicados += 1
+                else:
+                    errores += 1
+            t += 1
+            if t % 500 == 0:
+                db.commit()
+                update_process_status(
+                    "sanciones",
+                    "running",
+                    f"SECOP: {t} procesados, {insertados} nuevos",
+                )
 
-    for item in client.get_all(AntededentesSiri):
-        resultado_siri = guardar_sancionado_siri(item)
-        if resultado_siri:
-            if resultado_siri.get("exito"):
-                if resultado_siri.get("accion") == "insertado":
-                    insertados_siri += 1
-                elif resultado_siri.get("accion") == "duplicado":
-                    duplicados_siri += 1
-            else:
-                errores_siri += 1
-        t_siri += 1
-        if t_siri % 500 == 0:
-            db.commit()
-            print(
-                f"[SANCIONES] SIRI - Procesados: {t_siri}, Insertados: {insertados_siri}, Duplicados: {duplicados_siri}, Errores: {errores_siri}"
-            )
+        db.commit()
 
-    db.commit()
+        AntededentesSiri = "iaeu-rcn6"
+        t_siri = 0
+        insertados_siri = 0
+        duplicados_siri = 0
+        errores_siri = 0
 
-    print(f"[SANCIONES] SECOP completado en {time.time() - reloj:.2f}s")
-    print(f"[SANCIONES] SIRI completado en {time.time() - reloj_siri:.2f}s")
-    print(
-        f"[SANCIONES] TODO COMPLETADO - SECOP: {insertados} insertados, {duplicados} duplicados | SIRI: {insertados_siri} insertados, {duplicados_siri} duplicados"
-    )
+        for item in client.get_all(AntededentesSiri):
+            resultado_siri = guardar_sancionado_siri(item)
+            if resultado_siri:
+                if resultado_siri.get("exito"):
+                    if resultado_siri.get("accion") == "insertado":
+                        insertados_siri += 1
+                    elif resultado_siri.get("accion") == "duplicado":
+                        duplicados_siri += 1
+                else:
+                    errores_siri += 1
+            t_siri += 1
+            if t_siri % 500 == 0:
+                db.commit()
+                update_process_status(
+                    "sanciones",
+                    "running",
+                    f"SIRI: {t_siri} procesados, {insertados_siri} nuevos",
+                )
+
+        db.commit()
+        update_process_status(
+            "sanciones",
+            "completed",
+            f"Finalizado. SECOP: {insertados} nuevos, SIRI: {insertados_siri} nuevos",
+        )
+    except Exception as e:
+        update_process_status("sanciones", "error", f"Error: {str(e)}")
 
 
 @app.get("/populate/contratos")
 async def populate_contratos(request: Request):
+    if PROCESS_STATUS["contratos"]["status"] == "running":
+        return {
+            "status": "already_running",
+            "mensaje": "El procesamiento de contratos ya está en curso",
+        }
     asyncio.create_task(procesar_contratos_background())
     return {
         "status": "iniciado",
@@ -1331,69 +1421,74 @@ async def populate_contratos(request: Request):
 
 
 async def procesar_contratos_background():
+    update_process_status(
+        "contratos", "running", "Iniciando sincronización de contratos..."
+    )
     try:
-        claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
-    except:
-        claveApiSocrata = os.getenv("claveApiSocrata")
-
-    print(
-        f"[CONTRATOS] API Key: {claveApiSocrata[:20] if claveApiSocrata else 'None'}..."
-    )
-
-    client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
-    ContratosSecopII = "jbjy-vk9h"
-    LIMIT = 2000
-    offset = 0
-    total_procesados = 0
-    insertados = 0
-
-    print("[CONTRATOS] Iniciando sincronización de contratos...")
-
-    while True:
-        batch = client.get(ContratosSecopII, limit=LIMIT, offset=offset)
-        if not batch:
-            break
-
-        ids_lote = [item["id_contrato"] for item in batch if "id_contrato" in item]
-
-        existentes_query = db(db.contratos.id_contrato.belongs(ids_lote)).select(
-            db.contratos.id_contrato
-        )
-        existentes_ids = set(row.id_contrato for row in existentes_query)
-
-        contratos_nuevos = [
-            item for item in batch if item.get("id_contrato") not in existentes_ids
-        ]
-
-        if contratos_nuevos:
-            print(
-                f"[CONTRATOS] Lote offset {offset}: {len(contratos_nuevos)} contratos nuevos de {len(batch)}"
+        try:
+            claveApiSocrata = extractConfig(
+                nameModel="SocratesApi", dataOut="claveAppApi"
             )
-            contratos_limpios = [
-                transformar_nombres_columnas(c) for c in contratos_nuevos
+        except:
+            claveApiSocrata = os.getenv("claveApiSocrata")
+
+        client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
+        ContratosSecopII = "jbjy-vk9h"
+        LIMIT = 2000
+        offset = 0
+        total_procesados = 0
+        insertados = 0
+
+        while True:
+            batch = client.get(ContratosSecopII, limit=LIMIT, offset=offset)
+            if not batch:
+                break
+
+            ids_lote = [item["id_contrato"] for item in batch if "id_contrato" in item]
+
+            existentes_query = db(db.contratos.id_contrato.belongs(ids_lote)).select(
+                db.contratos.id_contrato
+            )
+            existentes_ids = set(row.id_contrato for row in existentes_query)
+
+            contratos_nuevos = [
+                item for item in batch if item.get("id_contrato") not in existentes_ids
             ]
-            db.contratos.bulk_insert(contratos_limpios)
 
-            for item in contratos_nuevos:
-                procesar_contrato_completo(item)
+            if contratos_nuevos:
+                contratos_limpios = [
+                    transformar_nombres_columnas(c) for c in contratos_nuevos
+                ]
+                db.contratos.bulk_insert(contratos_limpios)
 
-            insertados += len(contratos_nuevos)
-            db.commit()
+                for item in contratos_nuevos:
+                    procesar_contrato_completo(item)
 
-        total_procesados += len(batch)
-        offset += LIMIT
+                insertados += len(contratos_nuevos)
+                db.commit()
 
-        print(
-            f"[CONTRATOS] Proceso: {total_procesados} registros revisados, {insertados} insertados"
+            total_procesados += len(batch)
+            offset += LIMIT
+            update_process_status(
+                "contratos",
+                "running",
+                f"Revisados: {total_procesados}, Nuevos: {insertados}",
+            )
+
+        update_process_status(
+            "contratos", "completed", f"Finalizado. Nuevos: {insertados}"
         )
-
-    print(
-        f"[CONTRATOS] COMPLETADO - Total revisados: {total_procesados}, Nuevos insertados: {insertados}"
-    )
+    except Exception as e:
+        update_process_status("contratos", "error", f"Error: {str(e)}")
 
 
 @app.get("/populate/adiciones-ejecuciones")
 async def populate_adiciones_ejecuciones(request: Request):
+    if PROCESS_STATUS["adiciones_ejecuciones"]["status"] == "running":
+        return {
+            "status": "already_running",
+            "mensaje": "El procesamiento de adiciones y ejecuciones ya está en curso",
+        }
     asyncio.create_task(procesar_adiciones_ejecuciones_background())
     return {
         "status": "iniciado",
@@ -1402,80 +1497,94 @@ async def populate_adiciones_ejecuciones(request: Request):
 
 
 async def procesar_adiciones_ejecuciones_background():
+    update_process_status(
+        "adiciones_ejecuciones", "running", "Buscando contratos en DB..."
+    )
     try:
-        claveApiSocrata = extractConfig(nameModel="SocratesApi", dataOut="claveAppApi")
-    except:
-        claveApiSocrata = os.getenv("claveApiSocrata")
-
-    print(
-        f"[ADICIONES_EJECUCIONES] API Key: {claveApiSocrata[:20] if claveApiSocrata else 'None'}..."
-    )
-
-    client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
-    AdicionesSecopII = "cb9c-h8sn"
-    EjecucionesSecopII = "mfmm-jqmq"
-
-    contratosindb = db(db.contratos).select(db.contratos.id_contrato, distinct=True)
-    contractsindb = [c.id_contrato for c in contratosindb]
-
-    print(
-        f"[ADICIONES_EJECUCIONES] Buscando adiciones para {len(contractsindb)} contratos..."
-    )
-
-    t_adiciones = 0
-    insertados_adiciones = 0
-
-    for contracindb in contractsindb:
         try:
-            for item in client.get(
-                AdicionesSecopII, where=f"id_contrato == '{contracindb}'"
-            ):
-                item_limpio = transformar_nombres_columnas_adicion(item)
-                result = guardar_adiciones([item_limpio], actualizar_existentes=True)
-                if result.get("insertados", 0) > 0:
-                    insertados_adiciones += 1
-                t_adiciones += 1
-                if t_adiciones % 500 == 0:
-                    db.commit()
-                    print(
-                        f"[ADICIONES_EJECUCIONES] Adiciones procesadas: {t_adiciones}, insertadas: {insertados_adiciones}"
+            claveApiSocrata = extractConfig(
+                nameModel="SocratesApi", dataOut="claveAppApi"
+            )
+        except:
+            claveApiSocrata = os.getenv("claveApiSocrata")
+
+        client = Socrata("www.datos.gov.co", app_token=claveApiSocrata)
+        AdicionesSecopII = "cb9c-h8sn"
+        EjecucionesSecopII = "mfmm-jqmq"
+
+        contratosindb = db(db.contratos).select(db.contratos.id_contrato, distinct=True)
+        contractsindb = [c.id_contrato for c in contratosindb]
+
+        total_contratos = len(contractsindb)
+        update_process_status(
+            "adiciones_ejecuciones",
+            "running",
+            f"Procesando adiciones para {total_contratos} contratos...",
+        )
+
+        t_adiciones = 0
+        insertados_adiciones = 0
+
+        for i, contracindb in enumerate(contractsindb):
+            try:
+                for item in client.get(
+                    AdicionesSecopII, where=f"id_contrato == '{contracindb}'"
+                ):
+                    item_limpio = transformar_nombres_columnas_adicion(item)
+                    result = guardar_adiciones(
+                        [item_limpio], actualizar_existentes=True
                     )
-        except Exception as e:
-            print(f"[ADICIONES_EJECUCIONES] Error con contrato {contracindb}: {e}")
-            continue
+                    if result.get("insertados", 0) > 0:
+                        insertados_adiciones += 1
+                    t_adiciones += 1
 
-    db.commit()
-    print(
-        f"[ADICIONES_EJECUCIONES] Adiciones completadas: {t_adiciones} procesadas, {insertados_adiciones} insertadas"
-    )
-
-    print(
-        f"[ADICIONES_EJECUCIONES] Buscando ejecuciones para {len(contractsindb)} contratos..."
-    )
-
-    t_ejecuciones = 0
-    insertados_ejecuciones = 0
-
-    for contracindb in contractsindb:
-        try:
-            for item in client.get(
-                EjecucionesSecopII, where=f"identificadorcontrato == '{contracindb}'"
-            ):
-                item_limpio = transformar_nombres_columnas_ejecucion(item)
-                result = guardar_ejecuciones([item_limpio])
-                if result.get("insertados", 0) > 0:
-                    insertados_ejecuciones += 1
-                t_ejecuciones += 1
-                if t_ejecuciones % 500 == 0:
+                if (i + 1) % 50 == 0:
                     db.commit()
-                    print(
-                        f"[ADICIONES_EJECUCIONES] Ejecuciones procesadas: {t_ejecuciones}, insertadas: {insertados_ejecuciones}"
+                    update_process_status(
+                        "adiciones_ejecuciones",
+                        "running",
+                        f"Adiciones: {i + 1}/{total_contratos} contratos",
                     )
-        except Exception as e:
-            print(f"[ADICIONES_EJECUCIONES] Error con contrato {contracindb}: {e}")
-            continue
+            except Exception as e:
+                continue
 
-    db.commit()
-    print(
-        f"[ADICIONES_EJECUCIONES] COMPLETADO - Adiciones: {insertados_adiciones}, Ejecuciones: {insertados_ejecuciones}"
-    )
+        db.commit()
+
+        update_process_status(
+            "adiciones_ejecuciones",
+            "running",
+            f"Procesando ejecuciones para {total_contratos} contratos...",
+        )
+        t_ejecuciones = 0
+        insertados_ejecuciones = 0
+
+        for i, contracindb in enumerate(contractsindb):
+            try:
+                for item in client.get(
+                    EjecucionesSecopII,
+                    where=f"identificadorcontrato == '{contracindb}'",
+                ):
+                    item_limpio = transformar_nombres_columnas_ejecucion(item)
+                    result = guardar_ejecuciones([item_limpio])
+                    if result.get("insertados", 0) > 0:
+                        insertados_ejecuciones += 1
+                    t_ejecuciones += 1
+
+                if (i + 1) % 50 == 0:
+                    db.commit()
+                    update_process_status(
+                        "adiciones_ejecuciones",
+                        "running",
+                        f"Ejecuciones: {i + 1}/{total_contratos} contratos",
+                    )
+            except Exception as e:
+                continue
+
+        db.commit()
+        update_process_status(
+            "adiciones_ejecuciones",
+            "completed",
+            f"Finalizado. Adiciones: {insertados_adiciones}, Ejecuciones: {insertados_ejecuciones}",
+        )
+    except Exception as e:
+        update_process_status("adiciones_ejecuciones", "error", f"Error: {str(e)}")
