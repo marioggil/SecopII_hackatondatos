@@ -1221,7 +1221,14 @@ def parsear_fecha(fecha_str):
     Parsea una fecha en diferentes formatos.
     Soporta: DD/MM/YYYY, YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS.fff, MM/DD/YYYY, etc.
     """
-    if not fecha_str:
+    if not fecha_str or pd.isna(fecha_str):
+        return None
+
+    if not isinstance(fecha_str, str):
+        # Si ya es un objeto datetime de pandas, lo devolvemos tal cual
+        if isinstance(fecha_str, (datetime, pd.Timestamp)):
+            return fecha_str
+        # Si es otra cosa (como un float NaN que se escapó), devolvemos None
         return None
 
     fecha_limpia = limpiar_valor(fecha_str)
