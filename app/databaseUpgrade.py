@@ -283,6 +283,8 @@ def transformar_nombres_columnas(registro, mapeo=None):
 
         if key_nuevo in campos_numericos:
             registro_transformado[key_nuevo] = limpiar_valor_numerico(valor)
+        elif "fecha" in key_nuevo or key_nuevo == "ultima_actualizacion":
+            registro_transformado[key_nuevo] = parsear_fecha(valor)
         else:
             registro_transformado[key_nuevo] = limpiar_valor(valor)
 
@@ -1217,7 +1219,7 @@ def normalizar_documento(documento):
 def parsear_fecha(fecha_str):
     """
     Parsea una fecha en diferentes formatos.
-    Soporta: DD/MM/YYYY, YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS.fff
+    Soporta: DD/MM/YYYY, YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS.fff, MM/DD/YYYY, etc.
     """
     if not fecha_str:
         return None
@@ -1227,11 +1229,20 @@ def parsear_fecha(fecha_str):
         return None
 
     # Formatos comunes
-    formatos = ["%d/%m/%Y", "%Y-%m-%d", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]
+    formatos = [
+        "%m/%d/%Y %H:%M:%S",  # MM/DD/YYYY HH:MM:SS (Secop II CSV export)
+        "%d/%m/%Y %H:%M:%S",  # DD/MM/YYYY HH:MM:SS
+        "%m/%d/%Y",  # MM/DD/YYYY
+        "%d/%m/%Y",  # DD/MM/YYYY
+        "%Y-%m-%d",  # YYYY-MM-DD
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y %b %d %I:%M:%S %p",  # 2023 May 25 12:00:00 AM
+    ]
 
     for formato in formatos:
         try:
-            return datetime.strptime(fecha_limpia, formato).date()
+            return datetime.strptime(fecha_limpia, formato)
         except ValueError:
             continue
 
