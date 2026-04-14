@@ -1,3 +1,4 @@
+import io
 from pydal import DAL, Field
 
 import os
@@ -7,6 +8,7 @@ from decimal import Decimal
 import time
 from models.db import db
 from databaseUpgrade import (
+    CSV_COLUMN_MAPPING,
     verificar_registro_diferente,
     guardar_sancionado_siri,
     guardar_sancionado,
@@ -1496,6 +1498,71 @@ async def procesar_contratos_background():
         )
     except Exception as e:
         update_process_status("contratos", "error", f"Error: {str(e)}")
+
+
+@app.post("/populate/contratos/csv")
+async def populate_contratos_csv(file: UploadFile = File(...)):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser un CSV")
+
+    try:
+        content = await file.read()
+        df = pd.read_csv(io.BytesIO(content))
+
+        # Reemplazar NaNs por None para PyDAL
+        df = df.where(pd.notnull(df), None)
+
+        registros = df.to_dict(orient="records")
+        insertados = 0
+        actualizados = 0
+        errores = 0
+
+        for reg in registros:
+            try:
+                # Transformar usando el mapeo de CSV
+                reg_limpio = transformar_nombres_columnas(reg, mapeo=CSV_COLUMN_MAPPING)
+
+                id_contrato = reg_limpio.get("id_contrato")
+                if not id_contrato:
+                    errores += 1
+                    continue
+
+                # Verificar si ya existe
+                existente = db(db.contratos.id_contrato == id_contrato).select().first()
+
+                if existente:
+                    # Actualizar
+                    db(db.contratos.id_contrato == id_contrato).update(**reg_limpio)
+                    actualizados += 1
+                else:
+                    # Insertar
+                    db.contratos.insert(**reg_limpio)
+                    insertados += 1
+
+                # Procesar entidad y personas (usando nombres de BD ya limpios si es posible,
+                # pero procesar_contrato_completo espera nombres originales de la API.
+                # Como procesar_contrato_completo usa get() con nombres de la API Secop II,
+                # vamos a pasarle el registro original pero con las claves mapeadas si es necesario,
+                # o mejor, adaptar procesar_contrato_completo.
+                # Por ahora, pasamos el registro limpio ya que procesar_contrato_completo
+                # usa nombres que coinciden con los que pusimos en CSV_COLUMN_MAPPING.
+                procesar_contrato_completo(reg_limpio)
+
+            except Exception as e:
+                print(f"Error procesando registro: {e}")
+                errores += 1
+
+        db.commit()
+
+        return {
+            "status": "completado",
+            "insertados": insertados,
+            "actualizados": actualizados,
+            "errores": errores,
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error procesando CSV: {str(e)}")
 
 
 @app.get("/populate/adiciones-ejecuciones")
