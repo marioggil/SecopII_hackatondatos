@@ -14,6 +14,7 @@ dependencies = [
     "polars>=1.8.2",
     "psycopg2-binary>=2.9.10",
     "pydal>=20251115.1",
+    "python-multipart>=0.0.20",
     "sodapy>=2.2.0",
     "uvicorn>=0.33.0",
 ]

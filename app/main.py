@@ -1502,26 +1502,31 @@ async def procesar_contratos_background():
 
 @app.post("/populate/contratos/csv")
 async def populate_contratos_csv(file: UploadFile = File(...)):
+    counter=time.time()
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="El archivo debe ser un CSV")
 
     try:
+        
         content = await file.read()
         df = pd.read_csv(io.BytesIO(content))
-
+        df = df.sample(frac=1).reset_index(drop=True)
         # Reemplazar NaNs por None para PyDAL
         df = df.where(pd.notnull(df), None)
-
+        
         registros = df.to_dict(orient="records")
+        
         insertados = 0
         actualizados = 0
         errores = 0
-
+        tot=len(registros)
+        counter=time.time()
         for reg in registros:
+            
             try:
                 # Transformar usando el mapeo de CSV
                 reg_limpio = transformar_nombres_columnas(reg, mapeo=CSV_COLUMN_MAPPING)
-
+                
                 id_contrato = reg_limpio.get("id_contrato")
                 if not id_contrato:
                     errores += 1
@@ -1538,7 +1543,7 @@ async def populate_contratos_csv(file: UploadFile = File(...)):
                     # Insertar
                     db.contratos.insert(**reg_limpio)
                     insertados += 1
-
+                
                 # Procesar entidad y personas (usando nombres de BD ya limpios si es posible,
                 # pero procesar_contrato_completo espera nombres originales de la API.
                 # Como procesar_contrato_completo usa get() con nombres de la API Secop II,
@@ -1547,7 +1552,11 @@ async def populate_contratos_csv(file: UploadFile = File(...)):
                 # Por ahora, pasamos el registro limpio ya que procesar_contrato_completo
                 # usa nombres que coinciden con los que pusimos en CSV_COLUMN_MAPPING.
                 procesar_contrato_completo(reg_limpio)
-
+                if (insertados + actualizados + errores) % 300 == 0:
+                    db.commit()
+                    print(f"Procesados {insertados + actualizados + errores} registros de {tot}, de los cuales {insertados} insertados, {actualizados} actualizados y {errores} errores")
+                    print(f"Tiempo estimado restante: {((time.time()-counter)/(insertados + actualizados + errores))*(tot-(insertados + actualizados + errores))} segundos")
+                    
             except Exception as e:
                 print(f"Error procesando registro: {e}")
                 errores += 1
@@ -1623,6 +1632,7 @@ async def procesar_adiciones_ejecuciones_background():
 
                 if (i + 1) % 50 == 0:
                     db.commit()
+                    print(f"Procesados {i + 1} contratos de {total_contratos} en adiciones")
                     update_process_status(
                         "adiciones_ejecuciones",
                         "running",
@@ -1655,6 +1665,7 @@ async def procesar_adiciones_ejecuciones_background():
 
                 if (i + 1) % 50 == 0:
                     db.commit()
+                    print(f"Procesados {i + 1} contratos de {total_contratos} en ejecuciones")
                     update_process_status(
                         "adiciones_ejecuciones",
                         "running",
