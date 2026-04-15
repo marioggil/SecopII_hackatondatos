@@ -4,7 +4,7 @@ import os
 # Configuración
 # Ajustá la URL si tu API corre en un puerto o host distinto
 URL_API = "http://127.0.0.1:8000/populate/contratos/csv"
-NOMBRE_ARCHIVO = "/home/mario/Repositorios/Secop_hackatondatos/data/aprobados/SECOP_II_-_Contratos_Electrónicos_20260413 Buga.csv"
+NOMBRE_ARCHIVO = "/home/mario/Repositorios/Secop_hackatondatos/app/muestra/SECOP_II_-_Contratos_Electrónicos_20260413guacari.csv"
 
 # Obtenemos la ruta absoluta del archivo en el mismo directorio que este script
 dir_path = os.path.dirname(os.path.realpath(__file__))
