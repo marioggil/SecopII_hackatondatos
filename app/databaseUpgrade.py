@@ -211,7 +211,7 @@ MAX_DECIMAL_15_2 = 10**13 - 1  # 9,999,999,999,999.99
 
 def limpiar_valor_numerico(valor, maximo=MAX_DECIMAL_15_2):
     """Limpia valores numéricos, convirtiendo strings y recortando si excede el máximo."""
-    if valor is None:
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
         return None
 
     if isinstance(valor, (int, float)):
@@ -230,7 +230,23 @@ def limpiar_valor_numerico(valor, maximo=MAX_DECIMAL_15_2):
         if valor.lower() in valores_nulos:
             return None
         try:
-            num = float(valor.replace(",", "").replace("$", "").strip())
+            # Primero quitamos el símbolo de pesos
+            valor_limpio = valor.replace("$", "").strip()
+
+            # Caso 1: Formato con puntos como separadores de miles (ej: 93.131.856)
+            # Si tiene puntos pero NO comas, asumimos que el punto es separador de miles
+            if "." in valor_limpio and "," not in valor_limpio:
+                # Verificamos si parece un formato de miles (ej: no termina en .XX de centavos)
+                # En Colombia es común usar el punto para miles.
+                # Lo convertimos a formato estándar (sin puntos)
+                valor_limpio = valor_limpio.replace(".", "")
+
+            # Caso 2: Formato estándar americano o con comas (ej: 12,000,000.00 o 12000000.00)
+            else:
+                valor_limpio = valor_limpio.replace(",", "")
+
+            num = float(valor_limpio)
+
             if abs(num) > maximo:
                 return maximo if num > 0 else -maximo
             return num
