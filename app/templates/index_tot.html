@@ -6,32 +6,31 @@
             <button onclick="toggleFiltros()" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--color-text-secondary); line-height: 1;" title="Ocultar filtros">&times;</button>
         </div>
         
-        <form id="filtros-grafo" hx-get="/html/graph_rel/" hx-target="#graph-container" hx-trigger="change, submit" style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end;">
-            
+        <div id="filtros-container" style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end;">
             <div style="min-width: 180px;">
                 <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Estado del Contrato</label>
-                <select name="estado_contrato" hx-get="/html/opciones_filtros/?campo=estado_contrato" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                <select id="estado_contrato" hx-get="/html/opciones_filtros/?campo=estado_contrato" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
                     <option value="">Cargando...</option>
                 </select>
             </div>
 
             <div style="min-width: 180px;">
                 <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Modalidad</label>
-                <select name="modalidad_contratacion" hx-get="/html/opciones_filtros/?campo=modalidad_contratacion" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                <select id="modalidad_contratacion" hx-get="/html/opciones_filtros/?campo=modalidad_contratacion" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
                     <option value="">Cargando...</option>
                 </select>
             </div>
 
             <div style="min-width: 180px;">
                 <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Tipo de Contrato</label>
-                <select name="tipo_contrato" hx-get="/html/opciones_filtros/?campo=tipo_contrato" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                <select id="tipo_contrato" hx-get="/html/opciones_filtros/?campo=tipo_contrato" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
                     <option value="">Cargando...</option>
                 </select>
             </div>
 
             <div style="min-width: 180px;">
                 <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Justificación de la Modalidad</label>
-                <select name="justificacion_modalidad" hx-get="/html/opciones_filtros/?campo=justificacion_modalidad" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                <select id="justificacion_modalidad" hx-get="/html/opciones_filtros/?campo=justificacion_modalidad" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
                     <option value="">Cargando...</option>
                 </select>
             </div>
@@ -39,20 +38,20 @@
             <div style="min-width: 200px;">
                 <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Rango de Monto (COP)</label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="number" name="valor_minimo" placeholder="Min: 50000000" style="width: 50%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
-                    <input type="number" name="valor_maximo" placeholder="Max: 200000000" style="width: 50%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <input type="number" id="valor_minimo" placeholder="Min: 50000000" style="width: 50%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <input type="number" id="valor_maximo" placeholder="Max: 200000000" style="width: 50%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
                 </div>
             </div>
 
             <div style="display: flex; gap: 10px;">
-                <button type="submit" class="btn primary" style="background: var(--color-primary-medium);">Aplicar</button>
-                <button type="reset" class="btn" style="background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border);" onclick="setTimeout(() => htmx.trigger('#filtros-grafo', 'submit'), 50)">Limpiar</button>
+                <button type="button" class="btn primary" style="background: var(--color-primary-medium);" onclick="aplicarTodosLosFiltros()">Aplicar</button>
+                <button type="button" class="btn" style="background: transparent; color: var(--color-text-secondary); border: 1px solid var(--color-border);" onclick="limpiarTodosLosFiltros()">Limpiar</button>
             </div>
-        </form>
+        </div>
     </div>
 
     <!-- Contenedor del Grafo -->
-    <div id="graph-container" style="flex: 1; position: relative; overflow: hidden; background: #f0f2f5; display: flex; flex-direction: column;" hx-get="/html/graph_rel/" hx-trigger="load">
+    <div id="graph-container" style="flex: 1; position: relative; overflow: hidden; background: #f0f2f5; display: flex; flex-direction: column;">
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--color-text-secondary);">Cargando grafo...</div>
     </div>
 </div>
@@ -73,5 +72,123 @@ function toggleFiltros() {
         header.style.display = 'none';
         btn.style.display = 'block';
     }
+}
+
+function obtenerParametrosFiltro() {
+    const params = new URLSearchParams();
+    
+    const estado = document.getElementById('estado_contrato');
+    const modalidad = document.getElementById('modalidad_contratacion');
+    const tipo = document.getElementById('tipo_contrato');
+    const justificacion = document.getElementById('justificacion_modalidad');
+    const minimo = document.getElementById('valor_minimo');
+    const maximo = document.getElementById('valor_maximo');
+    
+    if (estado && estado.value) params.append('estado_contrato', estado.value);
+    if (modalidad && modalidad.value) params.append('modalidad_contratacion', modalidad.value);
+    if (tipo && tipo.value) params.append('tipo_contrato', tipo.value);
+    if (justificacion && justificacion.value) params.append('justificacion_modalidad', justificacion.value);
+    if (minimo && minimo.value) params.append('valor_minimo', minimo.value);
+    if (maximo && maximo.value) params.append('valor_maximo', maximo.value);
+    
+    return params.toString();
+}
+
+// Función helper para hacer requests que sigan redirects
+async function fetchWithRedirect(url) {
+    const response = await fetch(url, {
+        credentials: 'same-origin',
+        redirect: 'follow'
+    });
+    return await response.text();
+}
+
+function aplicarTodosLosFiltros() {
+    const params = obtenerParametrosFiltro();
+    const paramStr = params ? '?' + params : '';
+    
+    console.log('Aplicando filtros:', paramStr);
+    
+    // 1. ACTUALIZAR EL GRAFO (Prioridad)
+    const graphContainer = document.getElementById('graph-container');
+    if (graphContainer) {
+        console.log('Iniciando fetch para grafo...');
+        fetch('/html/graph_rel' + paramStr)
+            .then(response => {
+                if (!response.ok) throw new Error('Error en red');
+                return response.text();
+            })
+            .then(html => {
+                // Limpiar scripts anteriores si es necesario
+                graphContainer.innerHTML = html;
+                
+                // Ejecutar manualmente los scripts inyectados si innerHTML no lo hace
+                const scripts = graphContainer.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+                
+                console.log('HTML del grafo inyectado y scripts reiniciados');
+            })
+            .catch(err => console.error('Error grafo:', err));
+    }
+    
+    // 2. ACTUALIZAR OTROS COMPONENTES
+    if (typeof window.actualizarComponentes === 'function') {
+        window.actualizarComponentes(paramStr);
+    } else {
+        // Fallback...
+        console.log('Actualizando componentes secundarios directamente...');
+        fetch('/html/global_chart' + paramStr).then(r => r.text()).then(html => {
+            document.getElementById('global-chart-container').innerHTML = html;
+        });
+        fetch('/html/section_cards' + paramStr).then(r => r.text()).then(html => {
+            document.getElementById('top-entidades-container').innerHTML = html;
+        });
+        fetch('/html/section_cards_proveedores' + paramStr).then(r => r.text()).then(html => {
+            document.getElementById('top-proveedores-container').innerHTML = html;
+        });
+    }
+}
+
+function limpiarTodosLosFiltros() {
+    const estado = document.getElementById('estado_contrato');
+    const modalidad = document.getElementById('modalidad_contratacion');
+    const tipo = document.getElementById('tipo_contrato');
+    const justificacion = document.getElementById('justificacion_modalidad');
+    const minimo = document.getElementById('valor_minimo');
+    const maximo = document.getElementById('valor_maximo');
+    
+    if (estado) estado.value = '';
+    if (modalidad) modalidad.value = '';
+    if (tipo) tipo.value = '';
+    if (justificacion) justificacion.value = '';
+    if (minimo) minimo.value = '';
+    if (maximo) maximo.value = '';
+    
+    aplicarTodosLosFiltros();
+}
+
+// Inicializar filtros cuando el DOM esté listo Y los selects estén cargados
+function initFiltros() {
+    const estado = document.getElementById('estado_contrato');
+    
+    if (estado && estado.options.length > 1) {
+        console.log('Selects listos, aplicando filtros...');
+        aplicarTodosLosFiltros();
+    } else {
+        console.log('Esperando a que carguen los selects...');
+        setTimeout(initFiltros, 500);
+    }
+}
+
+// Ejecutar cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFiltros);
+} else {
+    setTimeout(initFiltros, 500);
 }
 </script>

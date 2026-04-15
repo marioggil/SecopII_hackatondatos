@@ -16,11 +16,78 @@
 <body>
     <div hx-get="/html/header" hx-trigger="load" hx-swap="innerHTML" class="title" id="title"></div> 
     <div hx-get="/html/index_info" hx-trigger="load" hx-swap="outerHTML"></div>
-    <div hx-get="/html/global_chart" hx-trigger="load" hx-swap="innerHTML"></div>
-    <div hx-get="/html/section_cards" hx-trigger="load" hx-swap="innerHTML" class="cards-container"></div>
-    <div hx-get="/html/section_cards_proveedores" hx-trigger="load" hx-swap="innerHTML" class="cards-container" style="padding-top: 0;"></div>
+    <!-- Contenedores sin carga automática - JavaScript los carga manualmente -->
+    <div id="global-chart-container"></div>
+    <div id="top-entidades-container" class="cards-container"></div>
+    <div id="top-proveedores-container" class="cards-container" style="padding-top: 0;"></div>
     <div hx-get="/html/section_cards_sancionados" hx-trigger="load" hx-swap="innerHTML" class="cards-container" style="padding-top: 0; padding-bottom: 60px;"></div>
-  
 
+<script>
+    // Función global para cargar componentes iniciales
+    window.cargarComponentesIniciales = function() {
+        console.log('Cargando componentes iniciales...');
+        
+        // Cargar gráfico global
+        fetch('/html/global_chart').then(r => r.text()).then(html => {
+            document.getElementById('global-chart-container').innerHTML = html;
+            console.log('Global chart cargado');
+        }).catch(err => console.error('Error cargando global chart:', err));
+        
+        // Cargar Top Entidades
+        fetch('/html/section_cards').then(r => r.text()).then(html => {
+            document.getElementById('top-entidades-container').innerHTML = html;
+            console.log('Top entidades cargado');
+        }).catch(err => console.error('Error cargando top entidades:', err));
+        
+        // Cargar Top Proveedores
+        fetch('/html/section_cards_proveedores').then(r => r.text()).then(html => {
+            document.getElementById('top-proveedores-container').innerHTML = html;
+            console.log('Top proveedores cargado');
+        }).catch(err => console.error('Error cargando top proveedores:', err));
+    };
+    
+    // Función global para aplicar filtros
+    window.actualizarComponentes = function(paramStr) {
+        console.log('actualizarComponentes llamado con:', paramStr);
+        
+        // Actualizar gráfico global
+        fetch('/html/global_chart' + paramStr).then(r => r.text()).then(html => {
+            document.getElementById('global-chart-container').innerHTML = html;
+            console.log('Global chart actualizado');
+        }).catch(err => console.error('Error actualizando global chart:', err));
+        
+        // Actualizar Top Entidades
+        fetch('/html/section_cards' + paramStr).then(r => r.text()).then(html => {
+            document.getElementById('top-entidades-container').innerHTML = html;
+            console.log('Top entidades actualizado');
+        }).catch(err => console.error('Error actualizando top entidades:', err));
+        
+        // Actualizar Top Proveedores
+        fetch('/html/section_cards_proveedores' + paramStr).then(r => r.text()).then(html => {
+            document.getElementById('top-proveedores-container').innerHTML = html;
+            console.log('Top proveedores actualizado');
+        }).catch(err => console.error('Error actualizando top proveedores:', err));
+    };
+    
+    // Inicializar cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cargar componentes iniciales después de que index_info termine de cargar
+        setTimeout(function() {
+            if (document.getElementById('header-filtros')) {
+                console.log('Filtros detectados, cargando componentes...');
+                window.cargarComponentesIniciales();
+            } else {
+                console.log('Sin filtros, esperando...');
+                // Si no hay filtros, esperar un poco más
+                setTimeout(function() {
+                    if (document.getElementById('header-filtros')) {
+                        window.cargarComponentesIniciales();
+                    }
+                }, 1000);
+            }
+        }, 500);
+    });
+</script>
+  
 </body>
 </html>

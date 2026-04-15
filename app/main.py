@@ -208,12 +208,47 @@ async def header(request: Request):
 
 
 @app.get("/html/section_cards", response_class=HTMLResponse)
-async def section_cards(request: Request):
+async def section_cards(
+    request: Request,
+    estado_contrato: Optional[str] = Query(None),
+    modalidad_contratacion: Optional[str] = Query(None),
+    tipo_contrato: Optional[str] = Query(None),
+    justificacion_modalidad: Optional[str] = Query(None),
+    valor_minimo: Optional[str] = Query(None),
+    valor_maximo: Optional[str] = Query(None),
+):
+    # Construir query con filtros
+    query = db.contratos.id > 0
+
+    if estado_contrato:
+        query &= db.contratos.estado_contrato.ilike(estado_contrato)
+    if modalidad_contratacion:
+        query &= db.contratos.modalidad_contratacion.ilike(modalidad_contratacion)
+    if tipo_contrato:
+        query &= db.contratos.tipo_contrato.ilike(tipo_contrato)
+    if justificacion_modalidad:
+        query &= db.contratos.justificacion_modalidad.ilike(justificacion_modalidad)
+    if valor_minimo:
+        query &= db.contratos.valor_contrato >= float(valor_minimo)
+    if valor_maximo:
+        query &= db.contratos.valor_contrato <= float(valor_maximo)
+
+    # Calcular totales generales de TODOS los contratos filtrados
+    total_conteo = db.contratos.id.count()
+    total_suma = db.contratos.valor_contrato.sum()
+    try:
+        totales = db(query).select(total_conteo, total_suma).first()
+        total_contratos_filtrados = totales[total_conteo] or 0
+        total_valor_filtrado = float(totales[total_suma] or 0)
+    except:
+        total_contratos_filtrados = 0
+        total_valor_filtrado = 0
+
     # Top 10 Entidades con más contratos
     conteo_ent = db.contratos.nit_entidad.count()
     suma_ent = db.contratos.valor_contrato.sum()
     try:
-        res_ent = db(db.contratos.nit_entidad != None).select(
+        res_ent = db(query & (db.contratos.nit_entidad != None)).select(
             db.contratos.nit_entidad,
             db.contratos.nombre_entidad,
             conteo_ent,
@@ -244,14 +279,34 @@ async def section_cards(request: Request):
             }
         )
 
-    context = {"request": request, "top_entidades": top_entidades}
+    context = {
+        "request": request,
+        "top_entidades": top_entidades,
+        "total_contratos": total_contratos_filtrados,
+        "total_valor": total_valor_filtrado,
+    }
 
     return templates.TemplateResponse("section_cards.html", context)
 
 
 @app.get("/html/global_chart", response_class=HTMLResponse)
-async def global_chart(request: Request):
+async def global_chart(
+    request: Request,
+    estado_contrato: Optional[str] = Query(None),
+    modalidad_contratacion: Optional[str] = Query(None),
+    tipo_contrato: Optional[str] = Query(None),
+    justificacion_modalidad: Optional[str] = Query(None),
+    valor_minimo: Optional[str] = Query(None),
+    valor_maximo: Optional[str] = Query(None),
+):
+    print(f"global_chart llamado con estado_contrato={estado_contrato}")
+
     is_postgres = db._uri.startswith("postgres")
+
+    # Determinar el placeholder correcto según la base de datos
+    placeholder = "%s" if is_postgres else "?"
+
+    # Construir query base
     if is_postgres:
         chart_query = """
             SELECT TO_CHAR(fecha_firma, 'YYYY-MM') as mes, count(id) as cantidad, sum(valor_contrato) as total 
@@ -268,24 +323,111 @@ async def global_chart(request: Request):
             GROUP BY mes 
             ORDER BY mes
         """
-    chart_data = "[]"
-    try:
+
+    # Aplicar filtros si hay parámetros
+    if (
+        estado_contrato
+        or modalidad_contratacion
+        or tipo_contrato
+        or justificacion_modalidad
+        or valor_minimo
+        or valor_maximo
+    ):
+        condiciones = []
+        placeholders = []
+
+        if estado_contrato:
+            if is_postgres:
+                condiciones.append("UPPER(estado_contrato) = " + placeholder)
+            else:
+                condiciones.append("UPPER(estado_contrato) = " + placeholder)
+            placeholders.append(estado_contrato.upper())
+        if modalidad_contratacion:
+            condiciones.append("UPPER(modalidad_contratacion) = " + placeholder)
+            placeholders.append(modalidad_contratacion.upper())
+        if tipo_contrato:
+            condiciones.append("UPPER(tipo_contrato) = " + placeholder)
+            placeholders.append(tipo_contrato.upper())
+        if justificacion_modalidad:
+            condiciones.append("UPPER(justificacion_modalidad) = " + placeholder)
+            placeholders.append(justificacion_modalidad.upper())
+        if valor_minimo:
+            condiciones.append("valor_contrato >= " + placeholder)
+            placeholders.append(float(valor_minimo))
+        if valor_maximo:
+            condiciones.append("valor_contrato <= " + placeholder)
+            placeholders.append(float(valor_maximo))
+
+        if condiciones:
+            where_clause = " AND ".join(condiciones)
+            chart_query = chart_query.replace(
+                "WHERE fecha_firma IS NOT NULL",
+                "WHERE fecha_firma IS NOT NULL AND " + where_clause,
+            )
+
+            print("Query con filtros:", chart_query)
+            print("Placeholders:", placeholders)
+
+            try:
+                chart_data_raw = db.executesql(
+                    chart_query, placeholders=placeholders, as_dict=True
+                )
+                print("Datos obtenidos:", len(chart_data_raw), "filas")
+            except Exception as e:
+                print("Error en query:", e)
+                chart_data_raw = []
+    else:
         chart_data_raw = db.executesql(chart_query, as_dict=True)
-        chart_data = json.dumps(chart_data_raw, cls=DecimalEncoder)
-    except Exception as e:
-        print("Error global chart:", e)
+
+    chart_data = json.dumps(chart_data_raw, cls=DecimalEncoder)
+    print("chart_data:", chart_data[:200] if len(chart_data) > 200 else chart_data)
 
     context = {"request": request, "chart_data": chart_data}
     return templates.TemplateResponse("global_chart.html", context)
 
 
 @app.get("/html/section_cards_proveedores", response_class=HTMLResponse)
-async def section_cards_proveedores(request: Request):
+async def section_cards_proveedores(
+    request: Request,
+    estado_contrato: Optional[str] = Query(None),
+    modalidad_contratacion: Optional[str] = Query(None),
+    tipo_contrato: Optional[str] = Query(None),
+    justificacion_modalidad: Optional[str] = Query(None),
+    valor_minimo: Optional[str] = Query(None),
+    valor_maximo: Optional[str] = Query(None),
+):
+    # Construir query con filtros
+    query = db.contratos.id > 0
+
+    if estado_contrato:
+        query &= db.contratos.estado_contrato.ilike(estado_contrato)
+    if modalidad_contratacion:
+        query &= db.contratos.modalidad_contratacion.ilike(modalidad_contratacion)
+    if tipo_contrato:
+        query &= db.contratos.tipo_contrato.ilike(tipo_contrato)
+    if justificacion_modalidad:
+        query &= db.contratos.justificacion_modalidad.ilike(justificacion_modalidad)
+    if valor_minimo:
+        query &= db.contratos.valor_contrato >= float(valor_minimo)
+    if valor_maximo:
+        query &= db.contratos.valor_contrato <= float(valor_maximo)
+
+    # Calcular totales generales de TODOS los contratos filtrados
+    total_conteo = db.contratos.id.count()
+    total_suma = db.contratos.valor_contrato.sum()
+    try:
+        totales = db(query).select(total_conteo, total_suma).first()
+        total_contratos_filtrados = totales[total_conteo] or 0
+        total_valor_filtrado = float(totales[total_suma] or 0)
+    except:
+        total_contratos_filtrados = 0
+        total_valor_filtrado = 0
+
     # Top 10 Proveedores con más contratos
     conteo_prov = db.contratos.documento_proveedor.count()
     suma_prov = db.contratos.valor_contrato.sum()
     try:
-        res_prov = db(db.contratos.documento_proveedor != None).select(
+        res_prov = db(query & (db.contratos.documento_proveedor != None)).select(
             db.contratos.documento_proveedor,
             db.contratos.proveedor_adjudicado,
             conteo_prov,
@@ -319,7 +461,12 @@ async def section_cards_proveedores(request: Request):
             }
         )
 
-    context = {"request": request, "top_proveedores": top_proveedores}
+    context = {
+        "request": request,
+        "top_proveedores": top_proveedores,
+        "total_contratos": total_contratos_filtrados,
+        "total_valor": total_valor_filtrado,
+    }
 
     return templates.TemplateResponse("section_cards_prov.html", context)
 
