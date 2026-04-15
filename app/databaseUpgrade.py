@@ -299,7 +299,9 @@ def transformar_nombres_columnas(registro, mapeo=None):
 
         if key_nuevo in campos_numericos:
             registro_transformado[key_nuevo] = limpiar_valor_numerico(valor)
-        elif "fecha" in key_nuevo or key_nuevo == "ultima_actualizacion":
+        elif key_nuevo and (
+            "fecha" in key_nuevo.lower() or key_nuevo == "ultima_actualizacion"
+        ):
             registro_transformado[key_nuevo] = parsear_fecha(valor)
         else:
             registro_transformado[key_nuevo] = limpiar_valor(valor)

@@ -37,7 +37,7 @@
     
     <div class="header-panel">
         <h1>{{ contrato.id_contrato }}</h1>
-        <p><strong>Objeto:</strong> {{ contrato.objeto_contrato[:150] }}...</p>
+        <p><strong>Objeto:</strong> {{ (contrato.objeto_contrato or 'Sin objeto definido')[:150] }}...</p>
     </div>
 
     <div class="info-section">
