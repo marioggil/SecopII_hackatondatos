@@ -23,3 +23,9 @@ app/databases/*
 databases/*
 main.ipynb
 app/VerificacionDatos.ipynb
+app/seg.zip
+app/muestra/SECOP_II_-_Contratos_Electrónicos_20260413guacari.csv
+data/aprobados/SECOP_II_-_Contratos_Electrónicos_20260413 Buga.csv
+data/aprobados/SECOP_II_-_Contratos_Electrónicos_20260413 Buga.ods
+data/aprobados/SECOP_II_-_Contratos_Electrónicos_20260413 guacari.csv
+data/aprobados/SECOP_II_-_Contratos_Electrónicos_20260413 muestra para ia.csv

@@ -399,6 +399,8 @@ def generar_nodos_y_enlaces(
     valor_maximo=None,
     estado_contrato=None,
     modalidad_contratacion=None,
+    tipo_contrato=None,
+    justificacion_modalidad=None,
     tamano_min=5,
     tamano_max=50,
     limit_entidades=30,
@@ -413,6 +415,8 @@ def generar_nodos_y_enlaces(
     - nit_entidad: Filtrar por un NIT de entidad específico
     - documento_proveedor: Filtrar por documento de proveedor específico
     - departamento: Filtrar por departamento
+    - tipo_contrato: Filtrar por tipo de contrato
+    - justificacion_modalidad: Filtrar por justificación de la modalidad
     - fecha_inicio: Filtrar contratos desde esta fecha
     - fecha_fin: Filtrar contratos hasta esta fecha
     - valor_minimo: Valor mínimo del contrato
@@ -456,6 +460,14 @@ def generar_nodos_y_enlaces(
 
     if modalidad_contratacion:
         query_base &= db.contratos.modalidad_contratacion.ilike(modalidad_contratacion)
+
+    if tipo_contrato:
+        query_base &= db.contratos.tipo_contrato.ilike(tipo_contrato)
+
+    if justificacion_modalidad:
+        query_base &= db.contratos.justificacion_modalidad.ilike(
+            justificacion_modalidad
+        )
 
     # ============= PROCESAR ENTIDADES =============
     resultado = db.contratos.nit_entidad.count()
@@ -946,7 +958,8 @@ async def graph(
     request: Request,
     estado_contrato: Optional[str] = Query(None),
     modalidad_contratacion: Optional[str] = Query(None),
-    departamento: Optional[str] = Query(None),
+    tipo_contrato: Optional[str] = Query(None),
+    justificacion_modalidad: Optional[str] = Query(None),
     valor_minimo: Optional[str] = Query(None),
     valor_maximo: Optional[str] = Query(None),
 ):
@@ -959,7 +972,10 @@ async def graph(
         modalidad_contratacion=modalidad_contratacion
         if modalidad_contratacion
         else None,
-        departamento=departamento if departamento else None,
+        tipo_contrato=tipo_contrato if tipo_contrato else None,
+        justificacion_modalidad=justificacion_modalidad
+        if justificacion_modalidad
+        else None,
         valor_minimo=v_minimo,
         valor_maximo=v_maximo,
         tamano_min=3,
@@ -977,6 +993,51 @@ async def graph(
     return HTMLResponse(
         content=html_content
     )  # templates.TemplateResponse("graph_ente_prove.html", context)
+
+
+@app.get("/html/opciones_filtros/", response_class=HTMLResponse)
+async def opciones_filtros(request: Request, campo: str):
+    """
+    Endpoint HTMX que retorna las opciones de un campo específico para los filtros.
+    """
+    label_todas = (
+        "Todas"
+        if campo in ["modalidad_contratacion", "justificacion_modalidad"]
+        else "Todos"
+    )
+
+    if campo == "tipo_contrato":
+        opciones = db(db.contratos.id > 0).select(
+            db.contratos.tipo_contrato, distinct=True
+        )
+        valores = sorted([o.tipo_contrato for o in opciones if o.tipo_contrato])
+    elif campo == "justificacion_modalidad":
+        opciones = db(db.contratos.id > 0).select(
+            db.contratos.justificacion_modalidad, distinct=True
+        )
+        valores = sorted(
+            [o.justificacion_modalidad for o in opciones if o.justificacion_modalidad]
+        )
+    elif campo == "modalidad_contratacion":
+        opciones = db(db.contratos.id > 0).select(
+            db.contratos.modalidad_contratacion, distinct=True
+        )
+        valores = sorted(
+            [o.modalidad_contratacion for o in opciones if o.modalidad_contratacion]
+        )
+    elif campo == "estado_contrato":
+        opciones = db(db.contratos.id > 0).select(
+            db.contratos.estado_contrato, distinct=True
+        )
+        valores = sorted([o.estado_contrato for o in opciones if o.estado_contrato])
+    else:
+        valores = []
+
+    opciones_html = f'<option value="">{label_todas}</option>' + "".join(
+        f'<option value="{v}">{v}</option>' for v in valores
+    )
+
+    return HTMLResponse(content=opciones_html)
 
 
 @app.get("/html/leyenda.html", response_class=HTMLResponse)
@@ -1502,31 +1563,29 @@ async def procesar_contratos_background():
 
 @app.post("/populate/contratos/csv")
 async def populate_contratos_csv(file: UploadFile = File(...)):
-    counter=time.time()
+    counter = time.time()
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="El archivo debe ser un CSV")
 
     try:
-        
         content = await file.read()
         df = pd.read_csv(io.BytesIO(content))
         df = df.sample(frac=1).reset_index(drop=True)
         # Reemplazar NaNs por None para PyDAL
         df = df.where(pd.notnull(df), None)
-        
+
         registros = df.to_dict(orient="records")
-        
+
         insertados = 0
         actualizados = 0
         errores = 0
-        tot=len(registros)
-        counter=time.time()
+        tot = len(registros)
+        counter = time.time()
         for reg in registros:
-            
             try:
                 # Transformar usando el mapeo de CSV
                 reg_limpio = transformar_nombres_columnas(reg, mapeo=CSV_COLUMN_MAPPING)
-                
+
                 id_contrato = reg_limpio.get("id_contrato")
                 if not id_contrato:
                     errores += 1
@@ -1543,7 +1602,7 @@ async def populate_contratos_csv(file: UploadFile = File(...)):
                     # Insertar
                     db.contratos.insert(**reg_limpio)
                     insertados += 1
-                
+
                 # Procesar entidad y personas (usando nombres de BD ya limpios si es posible,
                 # pero procesar_contrato_completo espera nombres originales de la API.
                 # Como procesar_contrato_completo usa get() con nombres de la API Secop II,
@@ -1554,9 +1613,13 @@ async def populate_contratos_csv(file: UploadFile = File(...)):
                 procesar_contrato_completo(reg_limpio)
                 if (insertados + actualizados + errores) % 300 == 0:
                     db.commit()
-                    print(f"Procesados {insertados + actualizados + errores} registros de {tot}, de los cuales {insertados} insertados, {actualizados} actualizados y {errores} errores")
-                    print(f"Tiempo estimado restante: {((time.time()-counter)/(insertados + actualizados + errores))*(tot-(insertados + actualizados + errores))} segundos")
-                    
+                    print(
+                        f"Procesados {insertados + actualizados + errores} registros de {tot}, de los cuales {insertados} insertados, {actualizados} actualizados y {errores} errores"
+                    )
+                    print(
+                        f"Tiempo estimado restante: {((time.time() - counter) / (insertados + actualizados + errores)) * (tot - (insertados + actualizados + errores))} segundos"
+                    )
+
             except Exception as e:
                 print(f"Error procesando registro: {e}")
                 errores += 1
@@ -1632,7 +1695,9 @@ async def procesar_adiciones_ejecuciones_background():
 
                 if (i + 1) % 50 == 0:
                     db.commit()
-                    print(f"Procesados {i + 1} contratos de {total_contratos} en adiciones")
+                    print(
+                        f"Procesados {i + 1} contratos de {total_contratos} en adiciones"
+                    )
                     update_process_status(
                         "adiciones_ejecuciones",
                         "running",
@@ -1665,7 +1730,9 @@ async def procesar_adiciones_ejecuciones_background():
 
                 if (i + 1) % 50 == 0:
                     db.commit()
-                    print(f"Procesados {i + 1} contratos de {total_contratos} en ejecuciones")
+                    print(
+                        f"Procesados {i + 1} contratos de {total_contratos} en ejecuciones"
+                    )
                     update_process_status(
                         "adiciones_ejecuciones",
                         "running",

@@ -10,41 +10,29 @@
             
             <div style="margin-bottom: 15px;">
                 <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Estado del Contrato</label>
-                <select name="estado_contrato" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
-                    <option value="">Todos</option>
-                    <option value="En ejecución">En ejecución</option>
-                    <option value="Terminado">Terminado</option>
-                    <option value="Modificado">Modificado</option>
-                    <option value="Cerrado">Cerrado</option>
-                    <option value="Suspendido">Suspendido</option>
-                    <option value="Cancelado">Cancelado</option>
+                <select name="estado_contrato" hx-get="/html/opciones_filtros/?campo=estado_contrato" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <option value="">Cargando...</option>
                 </select>
             </div>
 
             <div style="margin-bottom: 15px;">
                 <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Modalidad</label>
-                <select name="modalidad_contratacion" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
-                    <option value="">Todas</option>
-                    <option value="Contratación directa">Contratación directa</option>
-                    <option value="Licitación pública">Licitación pública</option>
-                    <option value="Mínima cuantía">Mínima cuantía</option>
-                    <option value="Concurso de méritos abierto">Concurso de méritos abierto</option>
-                    <option value="Selección Abreviada de Menor Cuantía">Selección Abreviada</option>
-                    <option value="Contratación régimen especial">Régimen Especial</option>
+                <select name="modalidad_contratacion" hx-get="/html/opciones_filtros/?campo=modalidad_contratacion" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <option value="">Cargando...</option>
                 </select>
             </div>
 
             <div style="margin-bottom: 15px;">
-                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Departamento</label>
-                <select name="departamento" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
-                    <option value="">Todos</option>
-                    <option value="Distrito Capital de Bogotá">Bogotá D.C.</option>
-                    <option value="Antioquia">Antioquia</option>
-                    <option value="Valle del Cauca">Valle del Cauca</option>
-                    <option value="Cundinamarca">Cundinamarca</option>
-                    <option value="Santander">Santander</option>
-                    <option value="Atlántico">Atlántico</option>
-                    <option value="Bolívar">Bolívar</option>
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Tipo de Contrato</label>
+                <select name="tipo_contrato" hx-get="/html/opciones_filtros/?campo=tipo_contrato" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <option value="">Cargando...</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: var(--color-text-secondary);">Justificación de la Modalidad</label>
+                <select name="justificacion_modalidad" hx-get="/html/opciones_filtros/?campo=justificacion_modalidad" hx-target="this" hx-trigger="load" style="width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: 4px; font-family: inherit;">
+                    <option value="">Cargando...</option>
                 </select>
             </div>
 
