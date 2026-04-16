@@ -1396,6 +1396,7 @@ async def entidad_detalle(
         "page": page,
         "search": search or "",
         "sort_by": sort_by,
+        "today": datetime.now(),
     }
 
     if is_htmx:
@@ -1536,6 +1537,7 @@ async def proveedor_detalle(
         "page": page,
         "search": search or "",
         "sort_by": sort_by,
+        "today": datetime.now(),
     }
 
     if is_htmx:

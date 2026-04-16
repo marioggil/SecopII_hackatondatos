@@ -9,14 +9,52 @@
         {% endif %}
     </td>
     <td style="font-weight: bold; color: var(--color-success);">${{ "{:,.0f}".format(c.valor_contrato or 0).replace(',', '.') }}</td>
-    <td><span class="badge {% if c.estado_contrato == 'Terminado' %}badge-success{% else %}badge-info{% endif %}">{{ c.estado_contrato }}</span></td>
+    <td>
+        {% set es_vencido = c.fecha_fin and today and c.fecha_fin < today and c.estado_contrato not in ['Cancelado', 'Cerrado', 'Suspendido', 'Terminado'] %}
+        <span class="badge {% if es_vencido %}vencido-naranja{% elif c.estado_contrato == 'Terminado' %}badge-success{% else %}badge-info{% endif %}" 
+              {% if es_vencido %}style="background-color: #fb8c00 !important; color: white !important;"{% endif %}>
+            {{ c.estado_contrato }}
+        </span>
+    </td>
+    
+    <td class="col-firma">{{ c.fecha_firma.strftime('%Y-%m-%d') if c.fecha_firma else 'N/A' }}</td>
+    <td class="col-inicio">{{ c.fecha_inicio.strftime('%Y-%m-%d') if c.fecha_inicio else 'N/A' }}</td>
+    <td class="col-fin">{{ c.fecha_fin.strftime('%Y-%m-%d') if c.fecha_fin else 'N/A' }}</td>
+    <td class="col-adelantado">${{ "{:,.0f}".format(c.valor_pago_adelantado or 0).replace(',', '.') }}</td>
+    <td class="col-pend-pago">${{ "{:,.0f}".format(c.valor_pendiente_pago or 0).replace(',', '.') }}</td>
+    <td class="col-pagado">${{ "{:,.0f}".format(c.valor_pagado or 0).replace(',', '.') }}</td>
+    <td class="col-pend-ejec">${{ "{:,.0f}".format(c.valor_pendiente_ejecucion or 0).replace(',', '.') }}</td>
+    <td class="col-adicionados">{{ c.dias_adicionados or 0 }}</td>
+    <td class="col-duracion-dias">
+        {% set f_inicio = c.fecha_inicio or c.fecha_firma %}
+        {% if f_inicio and c.fecha_fin %}
+            {% set delta = c.fecha_fin - f_inicio %}
+            {% set total_days = delta.days if delta.days > 0 else 1 %}
+            {{ total_days }}
+        {% else %}
+            N/A
+        {% endif %}
+    </td>
+    <td class="col-pago-diario">
+        {% set f_inicio = c.fecha_inicio or c.fecha_firma %}
+        {% if f_inicio and c.fecha_fin and c.valor_contrato %}
+            {% set delta = c.fecha_fin - f_inicio %}
+            {% set total_days = delta.days if delta.days > 0 else 1 %}
+            {% set pago_diario = c.valor_contrato / total_days %}
+            <span style="font-weight: 500; color: var(--color-primary-medium);">${{ "{:,.0f}".format(pago_diario).replace(',', '.') }}</span>
+        {% else %}
+            N/A
+        {% endif %}
+    </td>
+    <td class="col-duracion">{{ c.duracion_contrato or 'N/A' }}</td>
+
     <td style="font-size: 0.9em;">{{ c.modalidad_contratacion }}</td>
 </tr>
 {% endfor %}
 
 {% if contratos|length == 50 %}
 <tr id="cargar-mas-row">
-    <td colspan="5" style="text-align: center; padding: 20px;">
+    <td colspan="14" style="text-align: center; padding: 20px;">
         <button hx-get="/entidad/{{ entidad.nit_entidad }}?page={{ page + 1 }}&sort_by={{ sort_by }}&search={{ search }}"
                 hx-target="#cargar-mas-row"
                 hx-swap="outerHTML"

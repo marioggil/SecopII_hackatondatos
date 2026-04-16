@@ -90,7 +90,29 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
             <h2 style="margin: 0; color: #0984e3;">Historial de Contratación</h2>
             
-            <form id="filtros-tabla" style="display: flex; gap: 10px; align-items: center;">
+            <form id="filtros-tabla" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <div style="position: relative; display: inline-block;">
+                    <button type="button" onclick="document.getElementById('column-selector').style.display = document.getElementById('column-selector').style.display === 'none' ? 'block' : 'none'" 
+                            style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: white; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                        📊 Columnas <span style="font-size: 0.8em;">▼</span>
+                    </button>
+                    <div id="column-selector" style="display: none; position: absolute; top: 100%; left: 0; background: white; border: 1px solid var(--color-border); border-radius: 4px; box-shadow: var(--shadow-md); z-index: 100; padding: 10px; min-width: 220px; margin-top: 5px;">
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-firma" onchange="toggleColumn('col-firma', this.checked)"> Fecha Firma</label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-inicio" onchange="toggleColumn('col-inicio', this.checked)"> Fecha Inicio</label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-fin" onchange="toggleColumn('col-fin', this.checked)"> Fecha Fin</label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-adelantado" onchange="toggleColumn('col-adelantado', this.checked)"> Pago Adelantado</label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-pend-pago" onchange="toggleColumn('col-pend-pago', this.checked)"> Pendiente Pago</label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-pagado" onchange="toggleColumn('col-pagado', this.checked)"> Valor Pagado</label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-pend-ejec" onchange="toggleColumn('col-pend-ejec', this.checked)"> Pend. Ejecución</label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-adicionados" onchange="toggleColumn('col-adicionados', this.checked)"> Días Adicionados</label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-duracion-dias" onchange="toggleColumn('col-duracion-dias', this.checked)"> Duración (Días)</label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-pago-diario" onchange="toggleColumn('col-pago-diario', this.checked)"> Pago Diario (COP)</label>
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer;"><input type="checkbox" class="col-toggle" data-col="col-duracion" onchange="toggleColumn('col-duracion', this.checked)"> Duración (Texto)</label>
+                        </div>
+                    </div>
+                </div>
+
                 <input type="text" name="search" value="{{ search }}"
                        placeholder="Buscar ID o Entidad..."
                        hx-get="/proveedor/{{ proveedor.documento }}"
@@ -109,13 +131,28 @@
                 </select>
             </form>
         </div>
+        <style>
+            .col-firma, .col-inicio, .col-fin, .col-adelantado, .col-pend-pago, .col-pagado, .col-pend-ejec, .col-adicionados, .col-duracion, .col-duracion-dias, .col-pago-diario {
+                display: none;
+            }
+        </style>
         <table>
             <thead>
                 <tr>
                     <th>Entidad Contratante</th>
                     <th>Valor</th>
                     <th>Estado</th>
-                    <th>Fecha Inicio</th>
+                    <th class="col-firma">Fecha Firma</th>
+                    <th class="col-inicio">Fecha Inicio</th>
+                    <th class="col-fin">Fecha Fin</th>
+                    <th class="col-adelantado">Pago Adelantado</th>
+                    <th class="col-pend-pago">Pendiente Pago</th>
+                    <th class="col-pagado">Valor Pagado</th>
+                    <th class="col-pend-ejec">Pend. Ejecución</th>
+                    <th class="col-adicionados">Días Adic.</th>
+                    <th class="col-duracion-dias">Duración (Días)</th>
+                    <th class="col-pago-diario">Pago Diario</th>
+                    <th class="col-duracion">Duración (Texto)</th>
                     <th>Modalidad</th>
                 </tr>
             </thead>
@@ -124,6 +161,44 @@
             </tbody>
         </table>
     </div>
+
+    <script>
+    function toggleColumn(colClass, show) {
+        const elements = document.querySelectorAll('.' + colClass);
+        elements.forEach(el => {
+            el.style.display = show ? 'table-cell' : 'none';
+        });
+        localStorage.setItem('col-visible-' + colClass, show);
+    }
+
+    function applySavedColumnPrefs() {
+        const toggles = document.querySelectorAll('.col-toggle');
+        toggles.forEach(toggle => {
+            const colClass = toggle.getAttribute('data-col');
+            const saved = localStorage.getItem('col-visible-' + colClass);
+            if (saved !== null) {
+                const isVisible = saved === 'true';
+                toggle.checked = isVisible;
+                toggleColumn(colClass, isVisible);
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', applySavedColumnPrefs);
+    document.body.addEventListener('htmx:afterOnLoad', function(evt) {
+        if (evt.detail.target.id === 'tabla-contratos-body' || evt.detail.target.id === 'cargar-mas-row') {
+            applySavedColumnPrefs();
+        }
+    });
+
+    document.addEventListener('click', function(event) {
+        const selector = document.getElementById('column-selector');
+        const button = selector.previousElementSibling;
+        if (!selector.contains(event.target) && event.target !== button && !button.contains(event.target)) {
+            selector.style.display = 'none';
+        }
+    });
+    </script>
 
     {% if chart_data != "[]" %}
     <script>
