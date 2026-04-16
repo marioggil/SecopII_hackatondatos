@@ -29,7 +29,15 @@
         
         // Cargar gráfico global
         fetch('/html/global_chart').then(r => r.text()).then(html => {
-            document.getElementById('global-chart-container').innerHTML = html;
+            const container = document.getElementById('global-chart-container');
+            container.innerHTML = html;
+            const scripts = container.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
             console.log('Global chart cargado');
         }).catch(err => console.error('Error cargando global chart:', err));
         
@@ -52,8 +60,18 @@
         
         // Actualizar gráfico global
         fetch('/html/global_chart' + paramStr).then(r => r.text()).then(html => {
-            document.getElementById('global-chart-container').innerHTML = html;
-            console.log('Global chart actualizado');
+            const container = document.getElementById('global-chart-container');
+            container.innerHTML = html;
+            
+            // Forzar ejecución de scripts inyectados
+            const scripts = container.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
+            console.log('Global chart actualizado y scripts reiniciados');
         }).catch(err => console.error('Error actualizando global chart:', err));
         
         // Actualizar Top Entidades

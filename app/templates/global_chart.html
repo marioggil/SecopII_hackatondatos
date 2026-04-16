@@ -6,88 +6,103 @@
 </div>
 
 <script>
-    // Asegurarse de que Chart.js esté cargado
-    if (typeof Chart === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-        script.onload = renderGlobalChart;
-        document.head.appendChild(script);
-    } else {
-        // Si ya existe una instancia del gráfico en este canvas, destruirla
-        const oldCanvas = document.getElementById('globalEvolucionChart');
-        if (oldCanvas) {
-            const chartInstance = Chart.getChart(oldCanvas);
-            if (chartInstance) {
-                chartInstance.destroy();
-            }
-        }
-        renderGlobalChart();
-    }
-
-    function renderGlobalChart() {
-        const rawData = {{ chart_data|safe }};
-        if (!rawData || rawData.length === 0) {
-            console.warn('Sin datos para el gráfico global');
-            return;
-        }
+    (function() {
+        console.log('Script de global_chart ejecutándose...');
         
-        const labels = rawData.map(d => d.mes);
-        const dataPlata = rawData.map(d => d.total);
-        const dataCantidad = rawData.map(d => d.cantidad);
+        function renderGlobalChart() {
+            const rawData = {{ chart_data|safe }};
+            console.log('Datos recibidos para el gráfico:', rawData ? rawData.length : 0, 'filas');
+            
+            if (!rawData || rawData.length === 0) {
+                console.warn('Sin datos para el gráfico global');
+                return;
+            }
+            
+            const canvas = document.getElementById('globalEvolucionChart');
+            if (!canvas) {
+                console.error('No se encontró el canvas globalEvolucionChart');
+                return;
+            }
 
-        const ctx = document.getElementById('globalEvolucionChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Inversión Total (COP)',
-                        data: dataPlata,
-                        backgroundColor: 'rgba(29, 201, 106, 0.6)',
-                        borderColor: 'rgb(29, 201, 106)',
-                        borderWidth: 1,
-                        yAxisID: 'y'
-                    },
-                    {
-                        label: 'Cantidad de Contratos',
-                        data: dataCantidad,
-                        type: 'line',
-                        fill: false,
-                        borderColor: 'rgb(26, 35, 126)',
-                        tension: 0.2,
-                        yAxisID: 'y1'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                scales: {
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: { display: true, text: 'Inversión Total (COP)' },
-                        ticks: {
-                            callback: function(value) {
-                                return '$' + new Intl.NumberFormat('es-CO', { notation: "compact" , compactDisplay: "short" }).format(value);
-                            }
+            const ctx = canvas.getContext('2d');
+            
+            // Destruir instancia previa si existe
+            const existingChart = Chart.getChart(canvas);
+            if (existingChart) {
+                console.log('Destruyendo gráfico anterior...');
+                existingChart.destroy();
+            }
+
+            const labels = rawData.map(d => d.mes);
+            const dataPlata = rawData.map(d => d.total);
+            const dataCantidad = rawData.map(d => d.cantidad);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Inversión Total (COP)',
+                            data: dataPlata,
+                            backgroundColor: 'rgba(29, 201, 106, 0.6)',
+                            borderColor: 'rgb(29, 201, 106)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Cantidad de Contratos',
+                            data: dataCantidad,
+                            type: 'line',
+                            fill: false,
+                            borderColor: 'rgb(26, 35, 126)',
+                            tension: 0.2,
+                            yAxisID: 'y1'
                         }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
                     },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: { display: true, text: 'Nº Contratos' },
-                        grid: { drawOnChartArea: false }
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'Inversión Total (COP)' },
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + new Intl.NumberFormat('es-CO', { notation: "compact" , compactDisplay: "short" }).format(value);
+                                }
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: 'Nº Contratos' },
+                            grid: { drawOnChartArea: false }
+                        }
                     }
                 }
-            }
-        });
-    }
+            });
+            console.log('Gráfico renderizado con éxito');
+        }
+
+        // Asegurarse de que Chart.js esté cargado
+        if (typeof Chart === 'undefined') {
+            console.log('Cargando Chart.js...');
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+            script.onload = renderGlobalChart;
+            document.head.appendChild(script);
+        } else {
+            // Un pequeño delay para asegurar que el DOM se inyectó completamente
+            setTimeout(renderGlobalChart, 50);
+        }
+    })();
 </script>
